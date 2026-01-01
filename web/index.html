@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SendMyNotice MVP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded shadow-md w-full max-w-lg">
+        <h1 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Send Preliminary Notice</h1>
+
+        <form hx-post="/web/send" hx-target="#result" hx-swap="innerHTML" class="space-y-4">
+            
+            <div class="space-y-2">
+                <h3 class="font-semibold text-gray-600 text-sm uppercase">Recipient (To)</h3>
+                <input type="text" name="to_name" placeholder="Name (e.g. Harry Homeowner)" required 
+                       class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                
+                <input type="text" name="to_address1" placeholder="Address Line 1" required 
+                       class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" name="to_city" placeholder="City" required 
+                           class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" name="to_state" placeholder="State" value="CA" required 
+                               class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="text" name="to_zip" placeholder="Zip" required 
+                               class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <input type="hidden" name="from_name" value="SendMyNotice Inc">
+            <input type="hidden" name="from_address1" value="55 Devine St">
+            <input type="hidden" name="from_city" value="San Jose">
+            <input type="hidden" name="from_state" value="CA">
+            <input type="hidden" name="from_zip" value="95110">
+
+            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 transition duration-150">
+                Send Certified Mail
+            </button>
+        </form>
+
+        <div id="result" class="mt-6"></div>
+    </div>
+
+</body>
+</html>
