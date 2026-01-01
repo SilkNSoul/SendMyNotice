@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -44,8 +43,8 @@ func main() {
 	r.Use(middleware.CleanPath)
 
 	// Routes
-	r.Post("/api/send-test", srv.handleSendTest)
 	r.Get("/", srv.handleHome)
+	r.Post("/web/preview", srv.handleWebPreview) // NEW
 	r.Post("/web/send", srv.handleWebSend)
 
 	log.Println("Server starting on :8080")
@@ -75,9 +74,10 @@ func (s *Server) handleWebSend(w http.ResponseWriter, r *http.Request) {
         SenderRole:     r.FormValue("sender_role"),
 		OwnerName:      r.FormValue("to_name"),
 		OwnerAddress:   fmt.Sprintf("%s, %s, %s %s", r.FormValue("to_address1"), r.FormValue("to_city"), r.FormValue("to_state"), r.FormValue("to_zip")),
-		LenderName:     r.FormValue("lender_name"),
+		JobSiteAddress: r.FormValue("job_site_address"),
 		JobDescription: r.FormValue("job_description"),
         EstimatedPrice: fmt.Sprintf("$%s", r.FormValue("estimated_price")),
+		LenderName:     r.FormValue("lender_name"),
 	}
 
 	// 2. Execute Template into a Buffer
@@ -142,41 +142,124 @@ if err != nil {
 	}
 
 	// 4. Return HTML Success Fragment
-	// We use Fprintf to construct a simple HTML response for HTMX to swap in.
 	successHTML := fmt.Sprintf(`
-		<div class="p-4 bg-green-50 border border-green-200 rounded text-center animate-pulse">
-			<h3 class="text-green-800 font-bold text-lg">Letter Sent!</h3>
-			<p class="text-sm text-green-600 mb-2">ID: %s</p>
-			<a href="%s" target="_blank" class="inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-				View PDF Proof
-			</a>
+		<div class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4">
+			<div class="bg-white p-8 rounded shadow-xl text-center max-w-md">
+				<div class="text-green-500 text-5xl mb-4">✓</div>
+				<h3 class="text-gray-800 font-bold text-xl mb-2">Letter Sent Successfully!</h3>
+				<p class="text-gray-600 mb-4">Lob ID: %s</p>
+				
+				<div class="bg-blue-50 p-3 rounded text-sm text-blue-800 mb-4">
+					<strong>Note:</strong> The PDF proof is being generated. It may take 10-15 seconds to appear.
+				</div>
+
+				<a href="%s" target="_blank" class="inline-block bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+					View PDF Proof
+				</a>
+				
+				<button onclick="window.location.reload()" class="block mt-4 text-gray-500 text-sm hover:underline mx-auto">
+					Send Another
+				</button>
+			</div>
 		</div>
 	`, resp.ID, resp.URL)
 
 	w.Write([]byte(successHTML))
 }
 
-// handleSendTest accepts a JSON payload and triggers the mailer
-func (s *Server) handleSendTest(w http.ResponseWriter, r *http.Request) {
-	var req mailer.LetterRequest
-	
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+// handleWebPreview renders the HTML for user confirmation (No API call yet)
+func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Error parsing form", http.StatusBadRequest)
 		return
 	}
 
-	resp, err := s.mailer.SendLetter(req)
+	// 1. Logic: If Job Site is blank (we don't have a field for it yet), default to Owner Address
+	jobSiteAddress := fmt.Sprintf("%s, %s, %s %s", 
+		r.FormValue("to_address1"), 
+		r.FormValue("to_city"), 
+		r.FormValue("to_state"), 
+		r.FormValue("to_zip"),
+	)
+
+	// 2. Prepare Data for the PREVIEW (HTML Render)
+	data := mailer.NoticeData{
+		Date:           time.Now().Format("January 2, 2006"),
+		SenderName:     r.FormValue("from_name"),
+		SenderAddress:  fmt.Sprintf("%s, %s, %s %s", r.FormValue("from_address1"), r.FormValue("from_city"), r.FormValue("from_state"), r.FormValue("from_zip")),
+		SenderRole:     r.FormValue("sender_role"),
+		OwnerName:      r.FormValue("to_name"),
+		OwnerAddress:   fmt.Sprintf("%s, %s, %s %s", r.FormValue("to_address1"), r.FormValue("to_city"), r.FormValue("to_state"), r.FormValue("to_zip")),
+		JobSiteAddress: jobSiteAddress, // <--- Use our variable
+		JobDescription: r.FormValue("job_description"),
+		EstimatedPrice: r.FormValue("estimated_price"),
+		LenderName:     r.FormValue("lender_name"),
+	}
+
+	tmpl, err := template.ParseFS(templates.GetNoticeFS(), "notice.html")
 	if err != nil {
-		log.Printf("Mailer error: %v", err)
-		http.Error(w, "Failed to send letter", http.StatusInternalServerError)
+		log.Printf("Template Error: %v", err)
+		http.Error(w, "System Error", http.StatusInternalServerError)
+		return
+	}
+	var htmlBuffer bytes.Buffer
+	if err := tmpl.Execute(&htmlBuffer, data); err != nil {
+		log.Printf("Execute Error: %v", err)
+		http.Error(w, "System Error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false) 
-	if err := enc.Encode(resp); err != nil {
-		log.Printf("Encoding error: %v", err)
-	}
+	// 3. Return the Modal with HIDDEN inputs to pass data to the final handler
+	fmt.Fprintf(w, `
+		<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4">
+			<div class="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
+				<div class="bg-gray-100 px-4 py-3 border-b flex justify-between items-center">
+					<h3 class="font-bold text-lg">Review Your Letter</h3>
+					<button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">&times;</button>
+				</div>
+				
+				<div class="p-6 h-96 overflow-y-auto bg-gray-50 border-b">
+					<div class="shadow-sm bg-white p-4 border mx-auto max-w-xl scale-90 origin-top">
+						%s
+					</div>
+				</div>
+
+				<div class="px-4 py-3 bg-gray-50 flex justify-end gap-3">
+					<button onclick="this.closest('.fixed').remove()" class="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded">Edit</button>
+					
+					<form hx-post="/web/send" hx-target="#result" hx-swap="innerHTML">
+						<input type="hidden" name="to_name" value="%s">
+						<input type="hidden" name="to_address1" value="%s">
+						<input type="hidden" name="to_city" value="%s">
+						<input type="hidden" name="to_state" value="%s">
+						<input type="hidden" name="to_zip" value="%s">
+						
+						<input type="hidden" name="from_name" value="%s">
+						<input type="hidden" name="from_address1" value="%s">
+						<input type="hidden" name="from_city" value="%s">
+						<input type="hidden" name="from_state" value="%s">
+						<input type="hidden" name="from_zip" value="%s">
+
+						<input type="hidden" name="job_description" value="%s">
+						<input type="hidden" name="estimated_price" value="%s">
+						<input type="hidden" name="sender_role" value="%s">
+						<input type="hidden" name="lender_name" value="%s">
+						
+						<input type="hidden" name="job_site_address" value="%s">
+
+						<button type="submit" class="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700">
+							Confirm & Send ($4.50)
+						</button>
+					</form>
+				</div>
+			</div>
+		</div>
+	`, 
+	htmlBuffer.String(), 
+	// Args for Hidden Inputs
+	r.FormValue("to_name"), r.FormValue("to_address1"), r.FormValue("to_city"), r.FormValue("to_state"), r.FormValue("to_zip"),
+	r.FormValue("from_name"), r.FormValue("from_address1"), r.FormValue("from_city"), r.FormValue("from_state"), r.FormValue("from_zip"),
+	r.FormValue("job_description"), r.FormValue("estimated_price"), r.FormValue("sender_role"), r.FormValue("lender_name"),
+	jobSiteAddress, // <--- IMPORTANT: The new argument
+	)
 }

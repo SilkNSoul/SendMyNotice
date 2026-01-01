@@ -28,8 +28,7 @@
     <div class="bg-white p-8 rounded shadow-md w-full max-w-lg">
         <h1 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Send Preliminary Notice</h1>
 
-        <form hx-post="/web/send" hx-target="#result" hx-swap="innerHTML" class="space-y-4">
-            
+    <form hx-post="/web/preview" hx-target="#result" hx-swap="innerHTML" class="space-y-4">            
             <div class="space-y-2">
                 <div class="flex items-center gap-2">
                     <h3 class="font-semibold text-gray-600 text-sm uppercase">Property Owner</h3>
@@ -68,7 +67,7 @@
                             <span class="tooltip-text">Legal Req: A "Good Faith Estimate" of the TOTAL value of your contract. It is okay if the final bill differs slightly.</span>
                         </div>
                     </div>
-                    <input type="text" name="estimated_price" placeholder="e.g. 5,000.00" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" name="estimated_price" id="price-input" placeholder="e.g. $5,000.00" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
                 <div class="mb-3">
@@ -103,11 +102,35 @@
             <input type="hidden" name="from_zip" value="95110">
 
             <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 transition duration-150">
-                Send Certified Mail
+                Preview Notice
             </button>
         </form>
 
         <div id="result" class="mt-6"></div>
     </div>
+
+  <script>
+    const priceInput = document.getElementById('price-input');
+    
+    priceInput.addEventListener('input', function(e) {
+        // 1. Remove non-numeric chars (except dot)
+        let value = this.value.replace(/[^\d.]/g, '');
+        
+        // 2. Split into whole/decimal
+        const parts = value.split('.');
+        
+        // 3. Add commas to whole number part
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        
+        // 4. Reassemble (limit to 2 decimal places)
+        if (parts.length > 2) {
+            value = parts[0] + "." + parts.slice(1).join('');
+        } else {
+            value = parts.join('.');
+        }
+        
+        this.value = value;
+    });
+</script>  
 </body>
 </html>
