@@ -47,6 +47,26 @@ type LobErrorResponse struct {
 	} `json:"error"`
 }
 
+// NoticeData holds the specific fields for the Civil Code § 8200 form
+type NoticeData struct {
+	Date            string
+	// The Contractor (User)
+	SenderName      string
+	SenderAddress   string
+	SenderRole      string // e.g., "Subcontractor"
+	
+	// The Property Owner (Recipient)
+	OwnerName       string
+	OwnerAddress    string
+
+	// Optional lender field
+	LenderName     string
+
+	// Project Details
+	JobDescription  string
+	JobSiteAddress  string
+	EstimatedPrice  string
+}
 type Client struct {
 	apiKey     string
 	httpClient *http.Client

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Preliminary Notice</title>
+    <style>
+        /* BASE RESET */
+        body { 
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            font-size: 11pt; 
+            line-height: 1.5; 
+            color: #1f2937; /* Dark Gray */
+            margin: 0;
+            padding: 0;
+        }
+
+        /* LOB SAFE ZONES */
+        /* Lob requires a clear area for the address window on Page 1 */
+        .page-1-container {
+            padding: 40px; 
+            padding-top: 3.5in; /* CRITICAL: Pushes content below the envelope window */
+        }
+
+        /* PAGE 2 SETUP */
+        .page-2-container {
+            padding: 40px;
+            page-break-before: always;
+        }
+
+        /* BRANDING */
+        .brand-header {
+            position: absolute;
+            top: 0.5in;
+            right: 0.5in;
+            text-align: right;
+        }
+        .brand-name {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #2563eb; /* Blue */
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .brand-tagline {
+            font-size: 8pt;
+            color: #6b7280;
+        }
+
+        /* COVER LETTER TYPOGRAPHY */
+        .greeting { font-weight: bold; margin-bottom: 1em; }
+        .paragraph { margin-bottom: 1em; text-align: justify; }
+        .bullet-list { list-style-type: none; padding-left: 0; margin: 1.5em 0; }
+        .bullet-list li { 
+            margin-bottom: 0.5em; 
+            padding-left: 1.5em; 
+            position: relative; 
+        }
+        .bullet-list li::before {
+            content: "✓";
+            color: #2563eb;
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+        .signature { margin-top: 2em; }
+
+        /* LEGAL NOTICE (PAGE 2) STYLES */
+        .legal-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .legal-title { font-size: 16pt; font-weight: 900; text-transform: uppercase; }
+        .legal-subtitle { font-style: italic; font-size: 10pt; }
+        
+        .section-row { margin-bottom: 15px; }
+        .label { font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #4b5563; display: block; margin-bottom: 2px; }
+        .value { font-size: 11pt; border-bottom: 1px solid #e5e7eb; padding-bottom: 2px; display: block; width: 100%; }
+        
+        .warning-box { 
+            background-color: #f3f4f6; 
+            border: 1px solid #d1d5db; 
+            padding: 15px; 
+            font-size: 9pt; 
+            margin-top: 30px; 
+            text-align: justify;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="brand-header">
+        <div class="brand-name">SendMyNotice</div>
+        <div class="brand-tagline">Automated Compliance</div>
+    </div>
+
+<div class="page-1-container">
+        <div class="greeting">Dear {{.OwnerName}},</div>
+        
+        <div class="paragraph">
+            We are sending you the attached document on behalf of <strong>{{.SenderName}}</strong> regarding the work being performed at the property located at <strong>{{.JobSiteAddress}}</strong>.
+        </div>
+
+        <div class="paragraph">
+            <strong>Please do not be alarmed.</strong> This is a standard "Preliminary Notice" required by California Civil Code § 8200 for many construction projects. Sending this notice is a routine legal formality that protects the rights of all parties involved.
+        </div>
+
+        <div class="paragraph" style="background-color: #f8fafc; padding: 10px; border-left: 4px solid #3b82f6; font-size: 10pt;">
+            <strong>Understanding the Details:</strong>
+            <ul style="margin: 5px 0; padding-left: 20px;">
+                <li><strong>Estimated Price:</strong> The figure listed is a "Good Faith Estimate" required by law. It represents the total potential value of services/materials and <strong>is not a bill</strong> for that amount.</li>
+                <li><strong>Description:</strong> The description provided is a general summary of work to be performed, as required by statute.</li>
+            </ul>
+        </div>
+
+        <div class="paragraph">
+            We value transparency and simply want to ensure compliance with state regulations. No action is required from you at this time.
+        </div>
+
+        <div class="signature">
+            Sincerely,<br>
+            <strong>The SendMyNotice Team</strong>
+        </div>
+    </div>
+
+    <div class="page-2-container">
+        <div class="legal-header">
+            <div class="legal-title">California Preliminary Notice</div>
+            <div class="legal-subtitle">(Pursuant to Civil Code Sections 8200 et seq.)</div>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 20px; font-weight: bold; font-size: 10pt;">
+            DO NOT DISREGARD THIS NOTICE.<br>
+            <span style="font-weight: normal; font-style: italic; font-size: 9pt;">THIS IS NOT A LIEN. THIS IS NOT A REFLECTION ON INTEGRITY.</span>
+        </div>
+
+        <div class="section-row">
+            <span class="label">1. Claimant (Sender)</span>
+            <span class="value">{{.SenderName}} — {{.SenderRole}}</span>
+            <span class="value" style="font-size: 9pt; border: none;">{{.SenderAddress}}</span>
+        </div>
+
+        <div class="section-row">
+            <span class="label">2. Owner (Recipient)</span>
+            <span class="value">{{.OwnerName}}</span>
+            <span class="value" style="font-size: 9pt; border: none;">{{.OwnerAddress}}</span>
+        </div>
+
+        <div class="section-row">
+            <span class="label">3. Description of Work</span>
+            <span class="value">{{.JobDescription}}</span>
+        </div>
+
+        <div class="section-row">
+            <span class="label">4. Job Site</span>
+            <span class="value">{{.JobSiteAddress}}</span>
+        </div>
+
+        <div class="section-row">
+            <span class="label">5. Estimated Price</span>
+            <span class="value">{{.EstimatedPrice}}</span>
+        </div>
+
+        <div class="warning-box">
+            <strong>NOTICE TO PROPERTY OWNER:</strong> EVEN THOUGH YOU HAVE PAID YOUR CONTRACTOR IN FULL, if the person or firm that has given you this notice is not paid in full for labor, service, equipment, or material provided or to be provided to your construction project, a lien may be placed on your property. Foreclosure of the lien may lead to loss of all or part of your property. You may wish to protect yourself against this consequence by (1) requiring your contractor to furnish a signed release by the person or firm that has given you this notice before making payment to your contractor or (2) any other method for protection that is appropriate under the circumstances.
+        </div>
+    </div>
+</body>
+</html>

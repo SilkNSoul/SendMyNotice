@@ -6,6 +6,22 @@
     <title>SendMyNotice MVP</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        /* CSS TOOLTIP IMPLEMENTATION */
+        .tooltip { position: relative; display: inline-block; cursor: pointer; }
+        .tooltip .tooltip-text {
+            visibility: hidden; width: 220px; background-color: #333; color: #fff;
+            text-align: left; border-radius: 6px; padding: 8px; position: absolute;
+            z-index: 1; bottom: 125%; left: 50%; margin-left: -110px;
+            font-size: 0.75rem; line-height: 1.2; opacity: 0; transition: opacity 0.3s;
+            font-weight: normal; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .tooltip .tooltip-text::after {
+            content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
+            border-width: 5px; border-style: solid; border-color: #333 transparent transparent transparent;
+        }
+        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
@@ -15,22 +31,68 @@
         <form hx-post="/web/send" hx-target="#result" hx-swap="innerHTML" class="space-y-4">
             
             <div class="space-y-2">
-                <h3 class="font-semibold text-gray-600 text-sm uppercase">Recipient (To)</h3>
-                <input type="text" name="to_name" placeholder="Name (e.g. Harry Homeowner)" required 
-                       class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
-                
-                <input type="text" name="to_address1" placeholder="Address Line 1" required 
-                       class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" name="to_city" placeholder="City" required 
-                           class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="text" name="to_state" placeholder="State" value="CA" required 
-                               class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
-                        <input type="text" name="to_zip" placeholder="Zip" required 
-                               class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                <div class="flex items-center gap-2">
+                    <h3 class="font-semibold text-gray-600 text-sm uppercase">Property Owner</h3>
+                    <div class="tooltip">❓
+                        <span class="tooltip-text">Legal Req: You must serve the legal owner of the property. If unknown, use the tax records integration (Coming Soon).</span>
                     </div>
+                </div>
+                <input type="text" name="to_name" placeholder="Owner Name" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" name="to_address1" placeholder="Address Line 1" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" name="to_city" placeholder="City" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" name="to_state" placeholder="State" value="CA" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="text" name="to_zip" placeholder="Zip" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t pt-4 mt-4">
+                <h3 class="font-semibold text-gray-600 text-sm uppercase mb-3">Job Details</h3>
+                
+                <div class="mb-3">
+                    <div class="flex items-center gap-2 mb-1">
+                        <label class="text-xs text-gray-500">Description of Work</label>
+                        <div class="tooltip">❓
+                            <span class="tooltip-text">Legal Req: A "general description" is sufficient (e.g., "Plumbing Fixtures"). It does not need to be an itemized invoice.</span>
+                        </div>
+                    </div>
+                    <input type="text" name="job_description" placeholder="e.g. Lumber, Framing, Labor" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="mb-3">
+                    <div class="flex items-center gap-2 mb-1">
+                        <label class="text-xs text-gray-500">Estimated Total Price ($)</label>
+                        <div class="tooltip">❓
+                            <span class="tooltip-text">Legal Req: A "Good Faith Estimate" of the TOTAL value of your contract. It is okay if the final bill differs slightly.</span>
+                        </div>
+                    </div>
+                    <input type="text" name="estimated_price" placeholder="e.g. 5,000.00" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="mb-3">
+                    <div class="flex items-center gap-2 mb-1">
+                        <label class="text-xs text-gray-500">Your Role</label>
+                        <div class="tooltip">❓
+                            <span class="tooltip-text">Did the Owner hire you directly? Select "Direct Contractor". Did another contractor hire you? Select "Subcontractor".</span>
+                        </div>
+                    </div>
+                    <select name="sender_role" class="w-full border p-2 rounded bg-white outline-none">
+                        <option value="Material Supplier">Material Supplier</option>
+                        <option value="Subcontractor">Subcontractor</option>
+                        <option value="Direct Contractor">Direct Contractor</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <div class="flex items-center gap-2 mb-1">
+                        <label class="text-xs text-gray-500">Construction Lender (Optional)</label>
+                        <div class="tooltip">❓
+                            <span class="tooltip-text">If a bank is funding the construction, you MUST serve them to protect your lien rights. Use our lookup tool to find them.</span>
+                        </div>
+                    </div>
+                    <input type="text" name="lender_name" placeholder="Bank Name (if known)" class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
             </div>
 
@@ -47,6 +109,5 @@
 
         <div id="result" class="mt-6"></div>
     </div>
-
 </body>
 </html>

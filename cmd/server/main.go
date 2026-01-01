@@ -9,9 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 	"errors"
+	"bytes"
+	"time"
+	"html/template"
 
 	"sendmynotice/internal/mailer"
 	"sendmynotice/internal/apierrors"
+	"sendmynotice/internal/templates"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -64,8 +68,36 @@ func (s *Server) handleWebSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Map Form Fields to Mailer Struct
+	data := mailer.NoticeData{
+		Date:           time.Now().Format("January 2, 2006"),
+		SenderName:     r.FormValue("from_name"), // e.g. "SendMyNotice Inc"
+		SenderAddress:  fmt.Sprintf("%s, %s, %s %s", r.FormValue("from_address1"), r.FormValue("from_city"), r.FormValue("from_state"), r.FormValue("from_zip")),
+        SenderRole:     r.FormValue("sender_role"),
+		OwnerName:      r.FormValue("to_name"),
+		OwnerAddress:   fmt.Sprintf("%s, %s, %s %s", r.FormValue("to_address1"), r.FormValue("to_city"), r.FormValue("to_state"), r.FormValue("to_zip")),
+		LenderName:     r.FormValue("lender_name"),
+		JobDescription: r.FormValue("job_description"),
+        EstimatedPrice: fmt.Sprintf("$%s", r.FormValue("estimated_price")),
+	}
+
+	// 2. Execute Template into a Buffer
+	tmpl, err := template.ParseFS(templates.GetNoticeFS(), "notice.html")	
+	if err != nil {
+		log.Printf("Template Parse Error: %v", err)
+		http.Error(w, "System Error", http.StatusInternalServerError)
+		return
+	}
+
+	var htmlBuffer bytes.Buffer
+	if err := tmpl.Execute(&htmlBuffer, data); err != nil {
+		log.Printf("Template Execute Error: %v", err)
+		http.Error(w, "System Error", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Create Request with the Rendered HTML
 	req := mailer.LetterRequest{
-		Description: "Web Form Submission",
+		Description: "CA Prelim Notice",
 		To: mailer.Address{
 			Name:           r.FormValue("to_name"),
 			AddressLine1:   r.FormValue("to_address1"),
@@ -83,7 +115,7 @@ func (s *Server) handleWebSend(w http.ResponseWriter, r *http.Request) {
 			AddressCountry: "US",
 		},
 		Color: false,
-		File:  "<html><body><h1>Preliminary Notice</h1><p>Sent via Web Interface.</p></body></html>",
+		File:  htmlBuffer.String(), // INJECT THE RENDERED HTML HERE
 	}
 
 	// 3. Call Lob
