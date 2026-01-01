@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"sendmynotice/internal/apierrors"
 )
 
 const lobEndpoint = "https://api.lob.com/v1/letters"
@@ -34,6 +36,15 @@ type LetterResponse struct {
 	ID          string `json:"id"`
 	ExpectedDel string `json:"expected_delivery_date"`
 	URL         string `json:"url"`
+}
+
+// LobErrorResponse matches the JSON structure Lob sends on failure
+type LobErrorResponse struct {
+	Error struct {
+		Message    string `json:"message"`
+		StatusCode int    `json:"status_code"`
+		Code       string `json:"code"`
+	} `json:"error"`
 }
 
 type Client struct {
@@ -80,6 +91,13 @@ func (c *Client) SendLetter(l LetterRequest) (*LetterResponse, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		var lobErr LobErrorResponse
+		if jsonErr := json.Unmarshal(body, &lobErr); jsonErr == nil && lobErr.Error.Code != "" {
+			// We successfully parsed a Lob error code
+			return nil, apierrors.MapLobError(lobErr.Error.Code, lobErr.Error.Message)
+		}
+		
+		// Fallback if the error body isn't JSON or doesn't match expected structure
 		return nil, fmt.Errorf("api rejected request (status %d): %s", resp.StatusCode, string(body))
 	}
 

@@ -1,15 +1,17 @@
 package main
 
 import (
-"encoding/json"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"errors"
 
 	"sendmynotice/internal/mailer"
+	"sendmynotice/internal/apierrors"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -86,10 +88,24 @@ func (s *Server) handleWebSend(w http.ResponseWriter, r *http.Request) {
 
 	// 3. Call Lob
 	resp, err := s.mailer.SendLetter(req)
-	if err != nil {
-		log.Printf("Mailer error: %v", err)
-		// Return HTML error banner
-		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Error: %v</div>`, err)
+if err != nil {
+		log.Printf("Mailer error: %v", err) // Log the technical error
+
+		var userErr *apierrors.UserError
+		
+		// 1. Check if it's a known UserError
+		if 	errors.As(err, &userErr) {
+			// Render the FRIENDLY message
+			fmt.Fprintf(w, `
+				<div class="p-4 bg-yellow-50 text-yellow-800 border border-yellow-400 rounded">
+					<p class="font-bold">Check Address:</p>
+					<p>%s</p>
+				</div>`, userErr.UserMessage)
+			return
+		}
+
+		// 2. Generic System Error
+		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">System Error: Please try again later.</div>`)
 		return
 	}
 
