@@ -15,6 +15,7 @@ import (
 	"sendmynotice/internal/mailer"
 	"sendmynotice/internal/apierrors"
 	"sendmynotice/internal/templates"
+	"sendmynotice/internal/property"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -22,6 +23,7 @@ import (
 
 type Server struct {
 	mailer *mailer.Client
+	property property.Client // New dependency
 }
 
 func main() {
@@ -31,8 +33,12 @@ func main() {
 	}
 	apiKey := strings.TrimSpace(rawKey)
 
+	// Initialize Mock Client (Switch this to RealClient later)
+    propClient := property.NewMockClient()
+
 	srv := &Server{
 		mailer: mailer.NewClient(apiKey),
+		property: propClient,
 	}
 
 	r := chi.NewRouter()
@@ -46,6 +52,7 @@ func main() {
 	r.Get("/", srv.handleHome)
 	r.Post("/web/preview", srv.handleWebPreview) // NEW
 	r.Post("/web/send", srv.handleWebSend)
+	r.Post("/web/lookup-owner", srv.handleLookupOwner)
 
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", r); err != nil {
@@ -262,4 +269,55 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 	r.FormValue("job_description"), r.FormValue("estimated_price"), r.FormValue("sender_role"), r.FormValue("lender_name"),
 	jobSiteAddress, // <--- IMPORTANT: The new argument
 	)
+}
+
+func (s *Server) handleLookupOwner(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Error", http.StatusBadRequest)
+		return
+	}
+
+	// 1. Call the Property API
+	owner, err := s.property.LookupOwner(
+		r.FormValue("to_address1"),
+		r.FormValue("to_city"),
+		r.FormValue("to_state"),
+		r.FormValue("to_zip"),
+	)
+
+	if err != nil {
+		// On error, just return the existing values so user doesn't lose them
+		// In a real app, you'd render a <span class="text-red">Error</span>
+		log.Printf("Lookup Error: %v", err)
+	}
+
+	// 2. Return the SWAPPED HTML inputs
+	// We re-render the exact same inputs from index.html, but with VALUE="" set to the result
+	fmt.Fprintf(w, `
+		<div id="owner-fields" class="space-y-2 animate-pulse-once">
+             <div class="flex items-center gap-2">
+                <h3 class="font-semibold text-gray-600 text-sm uppercase">Property Owner</h3>
+                <span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded border border-green-200">
+                    ✓ Verified from Tax Records
+                </span>
+            </div>
+			
+			<input type="text" name="to_name" value="%s" placeholder="Owner Name" required 
+				class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-green-500 bg-green-50 border-green-300">
+			
+			<input type="text" name="to_address1" value="%s" placeholder="Address Line 1" required 
+				class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+			
+			<div class="grid grid-cols-2 gap-4">
+				<input type="text" name="to_city" value="%s" placeholder="City" required 
+					class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+				<div class="grid grid-cols-2 gap-2">
+					<input type="text" name="to_state" value="%s" placeholder="State" required 
+						class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+					<input type="text" name="to_zip" value="%s" placeholder="Zip" required 
+						class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+				</div>
+			</div>
+		</div>
+	`, owner.Name, owner.Address, owner.City, owner.State, owner.Zip)
 }

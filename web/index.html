@@ -30,19 +30,40 @@
 
     <form hx-post="/web/preview" hx-target="#result" hx-swap="innerHTML" class="space-y-4">            
             <div class="space-y-2">
-                <div class="flex items-center gap-2">
-                    <h3 class="font-semibold text-gray-600 text-sm uppercase">Property Owner</h3>
-                    <div class="tooltip">❓
-                        <span class="tooltip-text">Legal Req: You must serve the legal owner of the property. If unknown, use the tax records integration (Coming Soon).</span>
+                <div class="flex justify-between items-end mb-2">
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-semibold text-gray-600 text-sm uppercase">Property Owner</h3>
+                        <div class="tooltip">❓
+                            <span class="tooltip-text">Legal Req: You must serve the legal owner. Use 'Find Owner' to pull official tax records.</span>
+                        </div>
                     </div>
+                    
+                    <button type="button" 
+                            hx-post="/web/lookup-owner"
+                            hx-target="#owner-fields" 
+                            hx-swap="outerHTML"
+                            hx-include="[name='to_address1'], [name='to_city'], [name='to_state'], [name='to_zip']"
+                            class="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-3 py-1 rounded font-semibold transition border border-indigo-200 flex items-center gap-1">
+                        🔍 Find Owner
+                    </button>
                 </div>
-                <input type="text" name="to_name" placeholder="Owner Name" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="text" name="to_address1" placeholder="Address Line 1" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" name="to_city" placeholder="City" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="text" name="to_state" placeholder="State" value="CA" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                        <input type="text" name="to_zip" placeholder="Zip" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+
+                <div id="owner-fields" class="space-y-2">
+                    <input type="text" name="to_name" placeholder="Owner Name (or click Find Owner)" required 
+                           class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                    
+                    <input type="text" name="to_address1" placeholder="Job Site Address Line 1" required 
+                           class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="text" name="to_city" placeholder="City" required 
+                               class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" name="to_state" placeholder="State" value="CA" required 
+                                   class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="text" name="to_zip" placeholder="Zip" required 
+                                   class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
                     </div>
                 </div>
             </div>
