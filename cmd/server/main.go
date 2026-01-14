@@ -21,8 +21,10 @@ import (
 )
 
 type Server struct {
-	mailer  *mailer.Client
-	payment *payment.Client
+	mailer      *mailer.Client
+	payment     *payment.Client
+	squareAppID string
+	squareLocID string
 }
 
 func main() {
@@ -36,6 +38,14 @@ func main() {
 	if squareToken == "" {
 		log.Fatal("SQUARE_ACCESS_TOKEN not set")
 	}
+	squareAppID := os.Getenv("SQUARE_APP_ID")
+	if squareAppID == "" {
+		log.Fatal("SQUARE_APP_ID not set")
+	}
+    squareLocID := os.Getenv("SQUARE_LOCATION_ID")
+    if squareAppID == "" || squareLocID == "" {
+        log.Fatal("SQUARE_APP_ID or SQUARE_LOCATION_ID not set")
+    }
 
 	// 2. Initialize Clients
 	// Use "sandbox" for dev, "production" for real money
@@ -45,6 +55,8 @@ func main() {
 	srv := &Server{
 		mailer:  mailer.NewClient(strings.TrimSpace(lobKey)),
 		payment: payClient,
+		squareAppID: squareAppID,
+        squareLocID: squareLocID,
 	}
 
 	// 3. Setup Router
@@ -117,60 +129,99 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return the Modal
-	// Note: We changed the hx-post to /web/pay-and-send
-	// Note: We added a mock 'square_token' field for testing (removed in real UI)
+// RENDER THE MODAL WITH PAYMENT FORM
 	fmt.Fprintf(w, `
-		<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4">
+		<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4 z-50">
 			<div class="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
 				<div class="bg-gray-100 px-4 py-3 border-b flex justify-between items-center">
-					<h3 class="font-bold text-lg">Review Your Letter</h3>
+					<h3 class="font-bold text-lg">Review & Pay</h3>
 					<button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">&times;</button>
 				</div>
 				
-				<div class="p-6 h-96 overflow-y-auto bg-gray-50 border-b">
+				<div class="p-6 h-64 overflow-y-auto bg-gray-50 border-b relative">
 					<div class="shadow-sm bg-white p-4 border mx-auto max-w-xl scale-90 origin-top">
 						%s
 					</div>
 				</div>
 
-				<div class="px-4 py-3 bg-gray-50 flex justify-end gap-3">
-					<button onclick="this.closest('.fixed').remove()" class="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded">Edit</button>
-					
-					<form hx-post="/web/pay-and-send" hx-target="#result" hx-swap="innerHTML">
-						<input type="hidden" name="to_name" value="%s">
-						<input type="hidden" name="to_address1" value="%s">
-						<input type="hidden" name="to_city" value="%s">
-						<input type="hidden" name="to_state" value="%s">
-						<input type="hidden" name="to_zip" value="%s">
+				<div class="p-6 bg-white">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Credit Card Details ($15.00)</label>
+                        <div id="card-container" class="h-12"></div>
+                    </div>
+
+					<div class="flex justify-end gap-3">
+						<button onclick="this.closest('.fixed').remove()" class="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded">Edit</button>
 						
-						<input type="hidden" name="from_name" value="%s">
-						<input type="hidden" name="from_address1" value="%s">
-						<input type="hidden" name="from_city" value="%s">
-						<input type="hidden" name="from_state" value="%s">
-						<input type="hidden" name="from_zip" value="%s">
+                        <form id="payment-form" hx-post="/web/pay-and-send" hx-target="#result" hx-swap="innerHTML">
+							<input type="hidden" name="to_name" value="%s">
+                            <input type="hidden" name="to_address1" value="%s">
+                            <input type="hidden" name="to_city" value="%s">
+                            <input type="hidden" name="to_state" value="%s">
+                            <input type="hidden" name="to_zip" value="%s">
+                            
+                            <input type="hidden" name="from_name" value="%s">
+                            <input type="hidden" name="from_address1" value="%s">
+                            <input type="hidden" name="from_city" value="%s">
+                            <input type="hidden" name="from_state" value="%s">
+                            <input type="hidden" name="from_zip" value="%s">
 
-						<input type="hidden" name="job_description" value="%s">
-						<input type="hidden" name="estimated_price" value="%s">
-						<input type="hidden" name="sender_role" value="%s">
-						<input type="hidden" name="lender_name" value="%s">
-						<input type="hidden" name="job_site_address" value="%s">
+                            <input type="hidden" name="job_description" value="%s">
+                            <input type="hidden" name="estimated_price" value="%s">
+                            <input type="hidden" name="sender_role" value="%s">
+                            <input type="hidden" name="lender_name" value="%s">
+                            <input type="hidden" name="job_site_address" value="%s">
 
-						<input type="hidden" name="square_token" value="cnon:card-nonce-ok">
+							<input type="hidden" id="square-token" name="square_token">
 
-						<button type="submit" class="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700">
-							Pay $15.00 & Send
-						</button>
-					</form>
+							<button type="button" id="card-button" class="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700 disabled:opacity-50">
+								Pay & Send
+							</button>
+						</form>
+					</div>
 				</div>
 			</div>
+            
+            <script>
+                (async function() {
+                    const payments = Square.payments('%s', '%s');
+                    const card = await payments.card();
+                    await card.attach('#card-container');
+
+                    const cardButton = document.getElementById('card-button');
+                    cardButton.addEventListener('click', async () => {
+                        cardButton.disabled = true;
+                        cardButton.innerText = "Processing...";
+                        
+                        try {
+                            const result = await card.tokenize();
+                            if (result.status === 'OK') {
+                                document.getElementById('square-token').value = result.token;
+                                // Trigger HTMX submission manually
+                                htmx.trigger('#payment-form', 'submit');
+                            } else {
+                                alert(result.errors[0].message);
+                                cardButton.disabled = false;
+                                cardButton.innerText = "Pay & Send";
+                            }
+                        } catch (e) {
+                            console.error(e);
+                            cardButton.disabled = false;
+                            cardButton.innerText = "Pay & Send";
+                        }
+                    });
+                })();
+            </script>
 		</div>
 	`,
 		htmlBuffer.String(),
+        // Hidden Inputs Args
 		r.FormValue("to_name"), r.FormValue("to_address1"), r.FormValue("to_city"), r.FormValue("to_state"), r.FormValue("to_zip"),
 		r.FormValue("from_name"), r.FormValue("from_address1"), r.FormValue("from_city"), r.FormValue("from_state"), r.FormValue("from_zip"),
 		r.FormValue("job_description"), r.FormValue("estimated_price"), r.FormValue("sender_role"), r.FormValue("lender_name"),
 		jobSiteAddress,
+        // Square IDs for JS
+        s.squareAppID, s.squareLocID,
 	)
 }
 
