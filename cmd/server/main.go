@@ -25,6 +25,7 @@ type Server struct {
 	payment     *payment.Client
 	squareAppID string
 	squareLocID string
+	squareJsURL string
 }
 
 func main() {
@@ -47,16 +48,28 @@ func main() {
         log.Fatal("SQUARE_APP_ID or SQUARE_LOCATION_ID not set")
     }
 
-	// 2. Initialize Clients
-	// Use "sandbox" for dev, "production" for real money
-	// You can switch this string based on an ENV var if you want later
-	payClient := payment.NewClient(squareToken, "sandbox")
+	appEnv := os.Getenv("APP_ENV")
+
+	// 2. Configure Production vs Sandbox
+	squareEnv := "sandbox"
+	squareJsURL := "https://sandbox.web.squarecdn.com/v1/square.js"
+
+	if appEnv == "production" {
+		log.Println("🚨 STARTING IN PRODUCTION MODE")
+		squareEnv = "production"
+		squareJsURL = "https://web.squarecdn.com/v1/square.js" // Real JS URL
+	} else {
+		log.Println("⚠️  STARTING IN SANDBOX MODE")
+	}
+	// 3. Initialize Clients
+	payClient := payment.NewClient(squareToken, squareEnv)
 
 	srv := &Server{
 		mailer:  mailer.NewClient(strings.TrimSpace(lobKey)),
 		payment: payClient,
 		squareAppID: squareAppID,
         squareLocID: squareLocID,
+		squareJsURL: squareJsURL,
 	}
 
 	// 3. Setup Router
@@ -85,7 +98,15 @@ func main() {
 }
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "web/index.html")
+    // Parse the index file as a template so we can inject the JS URL
+    tmpl, err := template.ParseFiles("web/index.html")
+    if err != nil {
+        http.Error(w, "Could not load page", http.StatusInternalServerError)
+        return
+    }
+
+    data := struct{ SquareJsURL string }{ SquareJsURL: s.squareJsURL }
+    tmpl.Execute(w, data)
 }
 
 // handleWebPreview: Renders the confirmation modal
