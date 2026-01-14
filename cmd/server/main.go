@@ -33,11 +33,19 @@ func main() {
 	}
 	apiKey := strings.TrimSpace(rawKey)
 
-	// Initialize Mock Client (Switch this to RealClient later)
-    propClient := property.NewMockClient()
+	var propClient property.Client
+	
+attomKey := os.Getenv("ATTOM_API_KEY")
+    if attomKey != "" {
+        log.Println("✅ Using REAL Property Data (ATTOM)")
+        propClient = property.NewAttomClient(attomKey)
+    } else {
+        log.Println("⚠️  ATTOM_API_KEY not found. Using MOCK Property Data.")
+        propClient = property.NewMockClient()
+    }
 
 	srv := &Server{
-		mailer: mailer.NewClient(apiKey),
+		mailer:   mailer.NewClient(strings.TrimSpace(apiKey)),
 		property: propClient,
 	}
 
@@ -271,41 +279,74 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+// cmd/server/main.go
+
 func (s *Server) handleLookupOwner(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Error", http.StatusBadRequest)
 		return
 	}
 
-	// 1. Call the Property API
-	owner, err := s.property.LookupOwner(
-		r.FormValue("to_address1"),
-		r.FormValue("to_city"),
-		r.FormValue("to_state"),
-		r.FormValue("to_zip"),
-	)
+	addr1 := strings.TrimSpace(r.FormValue("to_address1"))
+	city := strings.TrimSpace(r.FormValue("to_city"))
+	state := strings.TrimSpace(r.FormValue("to_state"))
+	zip := strings.TrimSpace(r.FormValue("to_zip"))
 
-	if err != nil {
-		// On error, just return the existing values so user doesn't lose them
-		// In a real app, you'd render a <span class="text-red">Error</span>
-		log.Printf("Lookup Error: %v", err)
+	// 1. Prevent Wasted Calls (Validation)
+	if addr1 == "" || city == "" || state == "" {
+		// Return HTML with an error message in the name field
+		s.renderOwnerFields(w, "", addr1, city, state, zip, "⚠️ Enter Address First")
+		return
 	}
 
-	// 2. Return the SWAPPED HTML inputs
-	// We re-render the exact same inputs from index.html, but with VALUE="" set to the result
+	// 2. Call API
+	owner, err := s.property.LookupOwner(addr1, city, state, zip)
+	
+	// FIX: Handle Error Explicitly & Return
+	if err != nil {
+		log.Printf("Lookup Error: %v", err)
+		// Return existing values but with an error indicator in the name field
+		s.renderOwnerFields(w, "", addr1, city, state, zip, "❌ Not Found / Error")
+		return
+	}
+
+	// 3. Success
+	s.renderOwnerFields(w, owner.Name, owner.Address, owner.City, owner.State, owner.Zip, "")
+}
+
+func (s *Server) renderOwnerFields(w http.ResponseWriter, name, addr, city, state, zip, errorMsg string) {
+	
+	nameVal := name
+	namePlaceholder := "Owner Name"
+	statusBadge := ""
+	inputBorder := "focus:ring-blue-500"
+    bgClass := ""
+
+	if errorMsg != "" {
+		nameVal = "" 
+		namePlaceholder = "Owner not found - Please enter manually" 
+		// Visual Cues (Yellow)
+		statusBadge = fmt.Sprintf(`<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200">⚠️ %s</span>`, "Manual Entry Required")
+        inputBorder = "focus:ring-yellow-500 border-yellow-300"
+        bgClass = "bg-yellow-50"
+
+	} else if name != "" {
+		// Success
+		statusBadge = `<span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded border border-green-200">✓ Verified from Tax Records</span>`
+        inputBorder = "focus:ring-green-500 border-green-300"
+        bgClass = "bg-green-50"
+	}
+
 	fmt.Fprintf(w, `
-		<div id="owner-fields" class="space-y-2 animate-pulse-once">
-             <div class="flex items-center gap-2">
-                <h3 class="font-semibold text-gray-600 text-sm uppercase">Property Owner</h3>
-                <span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded border border-green-200">
-                    ✓ Verified from Tax Records
-                </span>
+		<div id="owner-fields" class="space-y-2">
+            <div class="h-5 flex items-center">
+               %s
             </div>
 			
-			<input type="text" name="to_name" value="%s" placeholder="Owner Name" required 
-				class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-green-500 bg-green-50 border-green-300">
+            <input type="text" name="to_name" value="%s" placeholder="%s" required 
+				class="w-full border p-2 rounded outline-none focus:ring-2 %s %s">
 			
-			<input type="text" name="to_address1" value="%s" placeholder="Address Line 1" required 
+            <input type="text" name="to_address1" value="%s" placeholder="Owner Address Line 1" required 
 				class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
 			
 			<div class="grid grid-cols-2 gap-4">
@@ -319,5 +360,5 @@ func (s *Server) handleLookupOwner(w http.ResponseWriter, r *http.Request) {
 				</div>
 			</div>
 		</div>
-	`, owner.Name, owner.Address, owner.City, owner.State, owner.Zip)
+	`, statusBadge, nameVal, namePlaceholder, inputBorder, bgClass, addr, city, state, zip)
 }

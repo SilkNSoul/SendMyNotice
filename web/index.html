@@ -23,36 +23,26 @@
         .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
 
-    <div class="bg-white p-8 rounded shadow-md w-full max-w-lg">
+    <div class="bg-white p-8 rounded shadow-md w-full max-w-lg mb-8">
         <h1 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Send Preliminary Notice</h1>
 
-    <form hx-post="/web/preview" hx-target="#result" hx-swap="innerHTML" class="space-y-4">            
+        <form hx-post="/web/preview" hx-target="#result" hx-swap="innerHTML" class="space-y-4">            
+            
             <div class="space-y-2">
-                <div class="flex justify-between items-end mb-2">
-                    <div class="flex items-center gap-2">
-                        <h3 class="font-semibold text-gray-600 text-sm uppercase">Property Owner</h3>
-                        <div class="tooltip">❓
-                            <span class="tooltip-text">Legal Req: You must serve the legal owner. Use 'Find Owner' to pull official tax records.</span>
-                        </div>
+                <div class="flex items-center gap-2 mb-2">
+                    <h3 class="font-semibold text-gray-600 text-sm uppercase">Property Owner</h3>
+                    <div class="tooltip">❓
+                        <span class="tooltip-text">Legal Req: You must serve the legal owner. Use the tool below if unknown.</span>
                     </div>
-                    
-                    <button type="button" 
-                            hx-post="/web/lookup-owner"
-                            hx-target="#owner-fields" 
-                            hx-swap="outerHTML"
-                            hx-include="[name='to_address1'], [name='to_city'], [name='to_state'], [name='to_zip']"
-                            class="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-3 py-1 rounded font-semibold transition border border-indigo-200 flex items-center gap-1">
-                        🔍 Find Owner
-                    </button>
                 </div>
 
                 <div id="owner-fields" class="space-y-2">
-                    <input type="text" name="to_name" placeholder="Owner Name (or click Find Owner)" required 
+                    <input type="text" name="to_name" placeholder="Owner Name" required 
                            class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
                     
-                    <input type="text" name="to_address1" placeholder="Job Site Address Line 1" required 
+                    <input type="text" name="to_address1" placeholder="Owner Address Line 1" required 
                            class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
                     
                     <div class="grid grid-cols-2 gap-4">
@@ -75,7 +65,7 @@
                     <div class="flex items-center gap-2 mb-1">
                         <label class="text-xs text-gray-500">Description of Work</label>
                         <div class="tooltip">❓
-                            <span class="tooltip-text">Legal Req: A "general description" is sufficient (e.g., "Plumbing Fixtures"). It does not need to be an itemized invoice.</span>
+                            <span class="tooltip-text">Legal Req: A "general description" (e.g., "Plumbing Fixtures").</span>
                         </div>
                     </div>
                     <input type="text" name="job_description" placeholder="e.g. Lumber, Framing, Labor" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
@@ -85,18 +75,15 @@
                     <div class="flex items-center gap-2 mb-1">
                         <label class="text-xs text-gray-500">Estimated Total Price ($)</label>
                         <div class="tooltip">❓
-                            <span class="tooltip-text">Legal Req: A "Good Faith Estimate" of the TOTAL value of your contract. It is okay if the final bill differs slightly.</span>
+                            <span class="tooltip-text">Legal Req: A "Good Faith Estimate".</span>
                         </div>
                     </div>
-                    <input type="text" name="estimated_price" id="price-input" placeholder="e.g. $5,000.00" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" name="estimated_price" id="price-input" placeholder="e.g. 5,000.00" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
                 <div class="mb-3">
                     <div class="flex items-center gap-2 mb-1">
                         <label class="text-xs text-gray-500">Your Role</label>
-                        <div class="tooltip">❓
-                            <span class="tooltip-text">Did the Owner hire you directly? Select "Direct Contractor". Did another contractor hire you? Select "Subcontractor".</span>
-                        </div>
                     </div>
                     <select name="sender_role" class="w-full border p-2 rounded bg-white outline-none">
                         <option value="Material Supplier">Material Supplier</option>
@@ -106,12 +93,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <div class="flex items-center gap-2 mb-1">
-                        <label class="text-xs text-gray-500">Construction Lender (Optional)</label>
-                        <div class="tooltip">❓
-                            <span class="tooltip-text">If a bank is funding the construction, you MUST serve them to protect your lien rights. Use our lookup tool to find them.</span>
-                        </div>
-                    </div>
+                    <label class="text-xs text-gray-500 mb-1">Construction Lender (Optional)</label>
                     <input type="text" name="lender_name" placeholder="Bank Name (if known)" class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
             </div>
@@ -130,28 +112,53 @@
         <div id="result" class="mt-6"></div>
     </div>
 
-  <script>
-    const priceInput = document.getElementById('price-input');
-    
-    priceInput.addEventListener('input', function(e) {
-        // 1. Remove non-numeric chars (except dot)
-        let value = this.value.replace(/[^\d.]/g, '');
-        
-        // 2. Split into whole/decimal
-        const parts = value.split('.');
-        
-        // 3. Add commas to whole number part
-        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-        
-        // 4. Reassemble (limit to 2 decimal places)
-        if (parts.length > 2) {
-            value = parts[0] + "." + parts.slice(1).join('');
-        } else {
-            value = parts.join('.');
-        }
-        
-        this.value = value;
-    });
-</script>  
+    <div class="w-full max-w-lg">
+        <details class="bg-gray-200 rounded shadow-inner">
+            <summary class="p-4 cursor-pointer font-bold text-gray-600 select-none flex justify-between">
+                <span>Don't know the owner?</span>
+                <span class="text-indigo-600">Use Lookup Tool ↓</span>
+            </summary>
+            
+            <div class="p-4 border-t border-gray-300">
+                <p class="text-xs text-gray-600 mb-4">
+                    Enter the Job Site address below to search public tax records.
+                </p>
+
+                <form hx-post="/web/lookup-owner" 
+                    hx-target="#owner-fields" 
+                    hx-swap="outerHTML" 
+                    class="space-y-3">
+                    
+                    <input type="text" name="to_address1" placeholder="Job Site Address" required 
+                        class="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500">
+                    
+                    <div class="grid grid-cols-3 gap-2">
+                        <input type="text" name="to_city" placeholder="City" required class="w-full border p-2 rounded">
+                        <input type="text" name="to_state" value="CA" class="w-full border p-2 rounded">
+                        <input type="text" name="to_zip" placeholder="Zip" required class="w-full border p-2 rounded">
+                    </div>
+
+                    <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-2 rounded hover:bg-indigo-700">
+                        Search & Autofill Form
+                    </button>
+                </form>
+            </div>
+        </details>
+    </div>
+
+    <script>
+        const priceInput = document.getElementById('price-input');
+        priceInput.addEventListener('input', function(e) {
+            let value = this.value.replace(/[^\d.]/g, '');
+            const parts = value.split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            if (parts.length > 2) {
+                value = parts[0] + "." + parts.slice(1).join('');
+            } else {
+                value = parts.join('.');
+            }
+            this.value = value;
+        });
+    </script>
 </body>
 </html>
