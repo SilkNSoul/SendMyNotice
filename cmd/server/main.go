@@ -385,7 +385,7 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
-	const amountToCharge int64 = 98
+	const amountToCharge int64 = 2900
 
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "<div class='text-red-500'>Error parsing form</div>", http.StatusBadRequest)
