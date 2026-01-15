@@ -31,7 +31,6 @@ type LetterRequest struct {
 	Color        bool    `json:"color"`
 	File         string  `json:"file"`
 	ExtraService string  `json:"extra_service,omitempty"` 
-	AddressPlacement string  `json:"address_placement"` 
 }
 
 type LetterResponse struct {

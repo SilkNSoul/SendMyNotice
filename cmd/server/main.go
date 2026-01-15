@@ -466,7 +466,6 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		Color:        false,
 		File:         htmlBuffer.String(),
 		ExtraService: "certified", // This triggers the Tracking Number
-		AddressPlacement: "insert_blank_page",
 	}
 
 	resp, err := s.mailer.SendLetter(req)
@@ -683,11 +682,18 @@ func (s *Server) sendLeadToDiscord(email, name, role string) {
         return
     }
 
-    // Make the message prettier
-    msg := DiscordMessage{
+	logMsg := fmt.Sprintf(
+		"🔔 **New Lead!**\n👤 **Name:** %s\n📧 **Email:** `%s`\n🛠 **Role:** %s\n🕒 **Time:** <t:%d:R>",
+		name, email, role, time.Now().Unix(),
+	)
+
+	log.Println(logMsg)
+
+
+	msg := DiscordMessage{
         Content: fmt.Sprintf(
-            "🔔 **New Lead!**\n👤 **Name:** %s\n📧 **Email:** `%s`\n🛠 **Role:** %s\n🕒 **Time:** <t:%d:R>",
-            name, email, role, time.Now().Unix(),
+            "🔔 **New Lead!**\n🛠 **Role:** %s\n🕒 **Time:** <t:%d:R>\n*Check Railway logs for contact info.*",
+            role, time.Now().Unix(),
         ),
     }
 
