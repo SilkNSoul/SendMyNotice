@@ -4,98 +4,101 @@
     <meta charset="UTF-8">
     <title>Preliminary Notice - Civil Code 8200</title>
     <style>
-        @page { size: Letter; margin: 0.5in; }
-        
+        /* RESET: Tell Lob we want zero default browser margins */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            -webkit-print-color-adjust: exact;
+        }
+
+        /* CONTAINER: This is your manual margin. 
+           Lob uses an 8.5in x 11in canvas. 
+           We pad it manually to ensure safety. */
+        .document-container {
+            padding: 0.75in 1.0in; /* Top/Bot: 0.75in, Left/Right: 1.0in */
+            width: 100%;
+            box-sizing: border-box; /* Ensures padding doesn't expand width */
+            position: relative;
+        }
+
         body {
             font-family: 'Times New Roman', serif;
-            font-size: 11pt;
-            line-height: 1.25;
+            font-size: 11pt; /* 12pt can look a bit "Large Print Book". 11pt is standard legal. */
+            line-height: 1.3;
             color: #000;
         }
 
-        /* The "Data" Font - Makes it look filled in */
-        .data {
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 10pt;
+        /* THE STAMP (CMO's Touch): Make it look like a real filed doc */
+        .stamp-box {
+            position: absolute;
+            top: 0.5in;
+            right: 0.75in;
+            width: 160px;
+            height: 60px;
+            border: 2px solid #555;
+            color: #555;
+            padding: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 8pt;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            opacity: 0.8;
+            transform: rotate(-2deg); /* subtle rotation adds realism */
         }
+        
+        .header { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 10px; margin-top: 20px;}
+        .title { font-size: 14pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .subtitle { font-size: 10pt; font-weight: bold; }
 
-        /* Layout Utilities */
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-        .title { font-size: 16pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        .subtitle { font-size: 10pt; font-style: italic; }
+        .row { display: flex; width: 100%; margin-bottom: 12px; border-bottom: 1px dotted #ccc; padding-bottom: 4px; }
+        .label { width: 160px; font-weight: bold; font-size: 9pt; text-transform: uppercase; color: #444; flex-shrink: 0; }
+        .value { flex-grow: 1; font-family: 'Courier New', monospace; font-weight: 600; font-size: 10pt; }
 
-        .row { display: flex; width: 100%; margin-bottom: 10px; border-bottom: 1px dotted #ccc; padding-bottom: 2px; }
-        .label { width: 180px; font-weight: bold; font-size: 9pt; text-transform: uppercase; color: #333; flex-shrink: 0; }
-        .value { flex-grow: 1; }
-
-        /* The Scary Warning Box */
         .warning-box {
-            border: 3px double #000; /* Double border looks more legal */
-            padding: 15px;
-            background-color: #f8f8f8;
+            border: 2px solid #000;
+            padding: 12px;
+            background-color: #f0f0f0; /* Light gray background for contrast */
             margin: 20px 0;
-            font-size: 10pt;
+            font-size: 9pt;
             text-align: justify;
         }
-        .warning-title {
-            text-align: center;
-            font-weight: bold;
-            text-decoration: underline;
-            margin-bottom: 10px;
-        }
 
-        /* "Official Use" Box - Purely for aesthetics/authority */
-        .admin-box {
-            position: absolute;
-            top: 20px;
-            right: 0;
-            width: 150px;
-            border: 1px solid #000;
-            padding: 5px;
-            font-size: 8pt;
-            font-family: sans-serif;
-        }
-        
+        .cover-letter { font-family: 'Georgia', serif; line-height: 1.5; font-size: 11pt; }
         .page-break { page-break-after: always; }
-        
-        /* Cover Letter Styling */
-        .cover-letter { font-family: 'Georgia', serif; line-height: 1.5; }
-        .brand-header { font-family: sans-serif; font-weight: bold; font-size: 14pt; border-bottom: 1px solid #000; margin-bottom: 30px; }
     </style>
 </head>
 <body>
 
-    <div class="cover-letter">
+    <div class="document-container">
         <div class="brand-header">
-            {{.SenderName}} <span style="float:right; font-size:10pt; font-weight:normal; color:#555;">Date: {{.Date}}</span>
+            <span style="font-weight:bold; font-size:14pt;">{{.SenderName}}</span>
+            <span style="float:right; font-size:10pt;">Date: {{.Date}}</span>
         </div>
+        <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 30px;">
 
         <p><strong>RE: NOTICE OF PRELIMINARY RIGHTS</strong><br>
-        Job Site: <span class="data">{{.JobSiteAddress}}</span></p>
+        Job Site: <span style="font-family:'Courier New'">{{.JobSiteAddress}}</span></p>
 
         <p>Dear Property Owner,</p>
-
-        <p>We are pleased to be working on your project. California law requires us to keep you informed of your rights and our involvement.</p>
-
         <p>Enclosed is a <strong>California Preliminary Notice</strong>. This is a standard document sent to all property owners for projects where our contribution exceeds $500, pursuant to Civil Code § 8200.</p>
+        
+        <div style="border-left: 4px solid #2563eb; background: #eff6ff; padding: 10px 15px; margin: 20px 0;">
+            <strong>NOTE:</strong> This is <span style="text-decoration: underline;">NOT</span> a lien. It is not a bill. It is a statutory notice required by law to protect all parties.
+        </div>
 
-        <p style="border-left: 3px solid #000; padding-left: 15px; margin: 20px 0;">
-            <strong>IMPORTANT:</strong> This is <span style="text-decoration: underline;">NOT</span> a lien. It is not a bill. It does not require payment at this time. It is a statutory notice that simply establishes our right to be paid in the future should any issues arise.
-        </p>
-
-        <p>By sending this notice, we are ensuring compliance with state regulations and protecting all parties involved. We look forward to a successful completion of the work.</p>
-
-        <br>
+        <br><br>
         <p>Respectfully,</p>
-        <div class="data">{{.SenderName}}</div>
+        <div style="font-family:'Courier New'; font-weight:bold;">{{.SenderName}}</div>
         <div>{{.SenderRole}}</div>
     </div>
 
     <div class="page-break"></div>
 
-    <div style="position: relative;">
+    <div class="document-container">
         <div class="header">
             <div class="title">California Preliminary Notice</div>
             <div class="subtitle">NOTICE TO PROPERTY OWNER</div>
@@ -108,7 +111,7 @@
             <p>This notice is required by law to be served by the undersigned as a statement of your legal rights. This notice is not intended to reflect upon the financial condition of the contractor or the person employed by you on the construction project.</p>
         </div>
 
-        <div style="margin-top: 30px;">
+        <div style="margin-top: 20px;">
             
             <div class="row">
                 <div class="label">1. CLAIMANT (SENDER)</div>
@@ -146,8 +149,8 @@
 
         </div>
 
-        <div style="margin-top: 40px; border-top: 1px solid #000; padding-top: 10px; font-size: 8pt; text-align: center; color: #666;">
-            PROOF OF SERVICE VIA CERTIFIED MAIL IS MAINTAINED BY SENDER PURSUANT TO CA CIVIL CODE § 8118.
+        <div style="position: absolute; bottom: 0.5in; width: 100%; text-align: center; font-size: 8pt; color: #888;">
+            Statutory Form 8200 • Generated by SendMyNotice.com • Ref: Cert. Mail Tracking Included
         </div>
     </div>
 </body>

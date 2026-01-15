@@ -241,7 +241,6 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 	noticeTmpl.Execute(&noticeBuff, data)
 	modalData.NoticeHTML = template.HTML(noticeBuff.String())
 
-	// THE UPDATED MODAL TEMPLATE
 	const modalTemplate = `
 	<div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
 		<div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -287,9 +286,32 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 										</div>
 									</div>
 
+									<div class="bg-yellow-50 border border-yellow-100 p-2 rounded mb-4 flex items-start gap-2">
+										<svg class="w-4 h-4 text-yellow-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+										<div class="text-[10px] text-yellow-800 text-left">
+											<strong>Deadline Warning:</strong> If you started work more than 20 days ago, you must send this TODAY to protect your rights. USPS pickup is at 4:00 PM.
+										</div>
+									</div>
+
 									<button type="button" id="card-button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-3 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:text-sm transition">
 										Pay & Send via Certified Mail
 									</button>
+
+									<div class="mt-4 flex items-center justify-center gap-3 bg-gray-50 p-2 rounded border border-gray-100">
+										<div class="flex items-center gap-1">
+											<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+											<span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">256-Bit SSL Encrypted</span>
+										</div>
+										<div class="h-3 w-px bg-gray-300"></div>
+										<div class="flex items-center gap-1">
+											<svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+											<span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Secure Payment</span>
+										</div>
+									</div>
+									<p class="text-[9px] text-gray-400 text-center mt-2">
+										We do not store your credit card details. Payments are processed securely by Square®.
+									</p>
+
 								</form>
 								<div id="payment-status-container" class="mt-2 text-center text-xs text-red-600 font-bold min-h-[20px]"></div>
 							</div>
@@ -362,7 +384,6 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, modalData)
 }
 
-// handlePayAndSend: Charges card, THEN sends letter
 func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "<div class='text-red-500'>Error parsing form</div>", http.StatusBadRequest)
@@ -443,6 +464,7 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		Color:        false,
 		File:         htmlBuffer.String(),
 		ExtraService: "certified", // This triggers the Tracking Number
+		AddressPlacement: "insert_blank_page",
 	}
 
 	resp, err := s.mailer.SendLetter(req)
@@ -619,7 +641,7 @@ func (s *Server) handleCheckPDFStatus(w http.ResponseWriter, r *http.Request) {
 					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
 					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
 				</svg>
-				<span class="text-sm font-semibold text-gray-600">Finalizing Certified Mail Document...</span>
+				<span class="text-sm font-semibold text-gray-600">Encrypting & Finalizing Legal Document...</span>
 				<span class="text-xs text-gray-400 mt-1">This ensures legal compliance.</span>
 			</div>
 		`, encodedURL)

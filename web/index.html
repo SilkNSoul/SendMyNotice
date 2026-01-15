@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="index, follow">
-    <link rel="icon" href="../favicon.ico">
+    <link rel="icon" href="/favicon.ico">
     <title>SendMyNotice - California Preliminary Notices</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -71,18 +71,22 @@
                 </div>
 
                 <div class="w-full bg-white border-y border-gray-100 py-4 mb-12">
-                    <div class="max-w-6xl mx-auto px-4 flex justify-center items-center gap-8 grayscale opacity-70">
+                    <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-center items-center gap-6 sm:gap-12 opacity-80">
                         <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                            <span class="font-bold text-sm">Bank-Grade 256-bit Encryption</span>
-                        </div>
-                        <div class="hidden sm:flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
-                            <span class="font-bold text-sm">Powered by Square</span>
+                            <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
+                            <span class="font-bold text-xs sm:text-sm text-gray-600 uppercase tracking-wide">General Contractors</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                            <span class="font-bold text-sm">CA Civil Code § 8200 Compliant</span>
+                            <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
+                            <span class="font-bold text-xs sm:text-sm text-gray-600 uppercase tracking-wide">Electricians</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/></svg>
+                            <span class="font-bold text-xs sm:text-sm text-gray-600 uppercase tracking-wide">Plumbers</span>
+                        </div>
+                        <div class="hidden sm:flex items-center gap-2 border-l border-gray-200 pl-6">
+                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span class="font-bold text-xs sm:text-sm text-green-700">Code § 8200 Verified</span>
                         </div>
                     </div>
                 </div>
@@ -117,16 +121,23 @@
                     </div>
                 </div>
                 
-                <div class="pt-6 border-t border-gray-200">
-                    <div class="flex gap-6 hover:grayscale-0 transition">
-                         <span class="text-sm font-bold text-gray-600 flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-                            Stripe Secure
-                         </span>
-                         <span class="text-sm font-bold text-gray-600 flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zm-2-8l-6 6-4-4-1.4 1.4L12 16.8 19.4 11.4 18 10z"/></svg>
-                            USPS Integrated
-                         </span>
+                <div class="pt-8 border-t border-gray-100">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Powered by Industry Leaders</p>
+                    <div class="flex flex-wrap gap-6 items-center opacity-70 grayscale transition hover:grayscale-0">
+                        <div class="flex items-center gap-1">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19.625 3H4.375a1.375 1.375 0 00-1.375 1.375v15.25A1.375 1.375 0 004.375 21h15.25A1.375 1.375 0 0021 19.625V4.375A1.375 1.375 0 0019.625 3zM10.5 15.5h-3v-3h3v3zm-3-5h-3v-3h3v3zm5 5h-3v-3h3v3zm0-5h-3v-3h3v3zm5 5h-3v-3h3v3zm0-5h-3v-3h3v3z"/></svg>
+                            <span class="font-bold text-lg tracking-tight text-gray-800">Square</span>
+                        </div>
+
+                        <div class="flex items-center gap-1">
+                            <svg class="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8l8 5 8-5v10zm-8-7L4 6h16l-8 5z"/></svg>
+                            <span class="font-bold text-lg tracking-tight text-gray-800">Lob<span class="text-xs align-top text-gray-400">®</span></span>
+                        </div>
+
+                        <div class="flex items-center gap-2 border-l border-gray-300 pl-4 ml-2">
+                            <span class="font-bold text-xs text-gray-500 uppercase">Certified Mail®</span>
+                            <span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded">Verified</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -138,7 +149,7 @@
                         <h2 class="font-bold text-gray-800">New Preliminary Notice</h2>
                         <p class="text-xs text-green-600 font-medium flex items-center gap-1 mt-1">
                             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>
-                            used by 40+ contractors this week
+                            Trusted Compliance for California Trades
                         </p>
                     </div>
                     <span class="text-xs font-mono text-gray-500 bg-white border border-gray-200 px-2 py-1 rounded">SECURE FORM</span>

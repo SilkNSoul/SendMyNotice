@@ -28,12 +28,6 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # Copy the binary
 COPY --from=builder /app/server .
 
-# Copy the "web" folder (HTML/CSS) because your code reads it at runtime
-COPY --from=builder /app/web ./web
-
-# Copy the binary
-COPY --from=builder /app/server .
-
 # Copy the "web" folder
 COPY --from=builder /app/web ./web
 
