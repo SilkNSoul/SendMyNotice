@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="index, follow">
+    <link rel="icon" href="https://fav.farm/⚖️">
     <title>SendMyNotice - California Preliminary Notices</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -118,8 +120,35 @@
                     
                     <div class="p-6 sm:p-8">
                         <form hx-post="/web/preview" hx-target="#result" hx-swap="innerHTML" class="space-y-6">
-                            
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Your Email (for receipt & tracking)</label>
+                                <input type="email" name="user_email" placeholder="you@company.com" required 
+                                    class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                <p class="text-xs text-gray-500 mt-1">We'll send your tracking number here.</p>
+                            </div>
+
+                            <div>
+                                <div class="mb-8 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                                    <h3 class="text-xs font-bold text-blue-800 uppercase tracking-wider mb-3">1. Your Information (The Claimant)</h3>
+                                    <div class="space-y-3">
+                                        <input type="text" name="from_name" placeholder="Your Company Name (e.g. Joe's Plumbing)" required 
+                                            class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                        
+                                        <input type="text" name="from_address1" placeholder="Your Mailing Address" required 
+                                            class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                        
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <input type="text" name="from_city" placeholder="City" required 
+                                                class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <input type="text" name="from_state" value="CA" readonly 
+                                                    class="w-full bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg block p-3 cursor-not-allowed">
+                                                <input type="text" name="from_zip" placeholder="Zip" required 
+                                                    class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="flex items-center gap-2 mb-3">
                                     <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Recipient (Property Owner)</h3>
                                     <div class="tooltip-container">

@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -9,8 +11,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
-	"errors"
 
 	"sendmynotice/internal/apierrors"
 	"sendmynotice/internal/mailer"
@@ -20,6 +22,67 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
+
+type DiscordMessage struct {
+	Content string `json:"content"`
+}
+
+// Add a simple thread-safe logger
+var fileMutex sync.Mutex
+
+func (s *Server) logLead(email, name, role string) {
+    // structured log entry
+    entry := map[string]string{
+        "event":     "LEAD_CAPTURE", // Easy to grep in Railway logs
+        "timestamp": time.Now().Format(time.RFC3339),
+        "email":     email,
+        "name":      name,
+        "role":      role,
+        "status":    "FREE_TIER_DOWNLOAD",
+    }
+
+    // Write to STDOUT (Railway captures this)
+    jsonBytes, _ := json.Marshal(entry)
+    fmt.Println(string(jsonBytes)) 
+}
+
+func (s *Server) sendLeadToDiscord(email, name, role string) {
+    webhookURL := os.Getenv("DISCORD_WEBHOOK_URL")
+    if webhookURL == "" {
+        // Log to stdout so you see it in Railway
+        fmt.Println("⚠️ SKIPPING DISCORD: DISCORD_WEBHOOK_URL not set")
+        return
+    }
+
+    // Make the message prettier
+    msg := DiscordMessage{
+        Content: fmt.Sprintf(
+            "🔔 **New Lead!**\n👤 **Name:** %s\n📧 **Email:** `%s`\n🛠 **Role:** %s\n🕒 **Time:** <t:%d:R>",
+            name, email, role, time.Now().Unix(),
+        ),
+    }
+
+    payload, _ := json.Marshal(msg)
+    resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
+    if err != nil {
+        fmt.Printf("❌ Failed to send to Discord: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+}
+
+func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {
+	email := r.FormValue("email")
+	name := r.FormValue("from_name")
+	role := r.FormValue("sender_role")
+
+	// Send to Discord (Non-blocking)
+	go s.sendLeadToDiscord(email, name, role)
+
+	// Return the Javascript to trigger the print dialog
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<script>window.print();</script>`)
+}
 
 type Server struct {
 	mailer      *mailer.Client
@@ -44,10 +107,10 @@ func main() {
 	if squareAppID == "" {
 		log.Fatal("SQUARE_APP_ID not set")
 	}
-    squareLocID := os.Getenv("SQUARE_LOCATION_ID")
-    if squareAppID == "" || squareLocID == "" {
-        log.Fatal("SQUARE_APP_ID or SQUARE_LOCATION_ID not set")
-    }
+	squareLocID := os.Getenv("SQUARE_LOCATION_ID")
+	if squareAppID == "" || squareLocID == "" {
+		log.Fatal("SQUARE_APP_ID or SQUARE_LOCATION_ID not set")
+	}
 
 	appEnv := os.Getenv("APP_ENV")
 
@@ -66,10 +129,10 @@ func main() {
 	payClient := payment.NewClient(squareToken, squareEnv)
 
 	srv := &Server{
-		mailer:  mailer.NewClient(strings.TrimSpace(lobKey)),
-		payment: payClient,
+		mailer:      mailer.NewClient(strings.TrimSpace(lobKey)),
+		payment:     payClient,
 		squareAppID: squareAppID,
-        squareLocID: squareLocID,
+		squareLocID: squareLocID,
 		squareJsURL: squareJsURL,
 	}
 
@@ -86,33 +149,37 @@ func main() {
 	// Web Routes
 	r.Get("/", srv.handleHome)
 	r.Post("/web/preview", srv.handleWebPreview)
-	
+
 	// NEW: Merged Payment + Sending into one atomic action
-	r.Post("/web/pay-and-send", srv.handlePayAndSend) 
-	
-	// (Optional) Keep lookup route if you ever un-hide the tool, 
+	r.Post("/web/pay-and-send", srv.handlePayAndSend)
+
+	// (Optional) Keep lookup route if you ever un-hide the tool,
 	// but strictly for manual entry fallback logic.
 	r.Post("/web/lookup-owner", srv.handleLookupOwner)
 
 	r.Get("/web/check-pdf", srv.handleCheckPDFStatus)
+
+	r.Post("/web/capture-lead", srv.handleCaptureLead)
 
 	log.Println("🚀 Server starting on :8080")
 	http.ListenAndServe(":8080", r)
 }
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
-    // Parse the index file as a template so we can inject the JS URL
-    tmpl, err := template.ParseFiles("web/index.html")
-    if err != nil {
-        http.Error(w, "Could not load page", http.StatusInternalServerError)
-        return
-    }
+	// Parse the index file as a template so we can inject the JS URL
+	tmpl, err := template.ParseFiles("web/index.html")
+	if err != nil {
+		http.Error(w, "Could not load page", http.StatusInternalServerError)
+		return
+	}
 
-    data := struct{ SquareJsURL string }{ SquareJsURL: s.squareJsURL }
-    tmpl.Execute(w, data)
+	data := struct{ SquareJsURL string }{SquareJsURL: s.squareJsURL}
+	tmpl.Execute(w, data)
 }
 
 // handleWebPreview: Renders the confirmation modal
+// server/main.go (Updated handleWebPreview)
+
 func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Error parsing form", http.StatusBadRequest)
@@ -120,13 +187,55 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Logic: If Job Site is blank, default to Owner Address
-	jobSiteAddress := fmt.Sprintf("%s, %s, %s %s",
-		r.FormValue("to_address1"),
-		r.FormValue("to_city"),
-		r.FormValue("to_state"),
-		r.FormValue("to_zip"),
-	)
+	jobSiteAddress := r.FormValue("job_site_address")
+	if jobSiteAddress == "" {
+		jobSiteAddress = fmt.Sprintf("%s, %s, %s %s",
+			r.FormValue("to_address1"),
+			r.FormValue("to_city"),
+			r.FormValue("to_state"),
+			r.FormValue("to_zip"),
+		)
+	}
 
+	// Prepare data for the Modal
+	modalData := struct {
+		NoticeHTML  template.HTML
+		ToName      string
+		ToAddress   string
+		FromName    string
+		SenderRole  string
+		SquareAppID string
+		SquareLocID string
+		// DATA PRESERVATION: We pass the raw values to hidden inputs
+		HiddenInputs map[string]string
+	}{
+		ToName:      r.FormValue("to_name"),
+		ToAddress:   r.FormValue("to_address1"),
+		FromName:    r.FormValue("from_name"),
+		SenderRole:  r.FormValue("sender_role"),
+		SquareAppID: s.squareAppID,
+		SquareLocID: s.squareLocID,
+		HiddenInputs: map[string]string{
+			"to_name":          r.FormValue("to_name"),
+			"to_address1":      r.FormValue("to_address1"),
+			"to_city":          r.FormValue("to_city"),
+			"to_state":         r.FormValue("to_state"),
+			"to_zip":           r.FormValue("to_zip"),
+			"from_name":        r.FormValue("from_name"),
+			"from_address1":    r.FormValue("from_address1"),
+			"from_city":        r.FormValue("from_city"),
+			"from_state":       r.FormValue("from_state"),
+			"from_zip":         r.FormValue("from_zip"),
+			"sender_role":      r.FormValue("sender_role"),
+			"job_description":  r.FormValue("job_description"),
+			"estimated_price":  r.FormValue("estimated_price"),
+			"lender_name":      r.FormValue("lender_name"),
+			"job_site_address": jobSiteAddress,
+			"user_email":       r.FormValue("user_email"),
+		},
+	}
+
+	// Render the Inner Notice HTML (Visual Preview)
 	data := mailer.NoticeData{
 		Date:           time.Now().Format("January 2, 2006"),
 		SenderName:     r.FormValue("from_name"),
@@ -140,113 +249,130 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 		LenderName:     r.FormValue("lender_name"),
 	}
 
-	tmpl, err := template.ParseFS(templates.GetNoticeFS(), "notice.html")
-	if err != nil {
-		log.Printf("Template Error: %v", err)
-		http.Error(w, "System Error", http.StatusInternalServerError)
-		return
-	}
-	var htmlBuffer bytes.Buffer
-	if err := tmpl.Execute(&htmlBuffer, data); err != nil {
-		log.Printf("Execute Error: %v", err)
-		http.Error(w, "System Error", http.StatusInternalServerError)
-		return
-	}
+	noticeTmpl, _ := template.ParseFS(templates.GetNoticeFS(), "notice.html")
+	var noticeBuff bytes.Buffer
+	noticeTmpl.Execute(&noticeBuff, data)
+	modalData.NoticeHTML = template.HTML(noticeBuff.String())
 
-	// RENDER THE MODAL WITH PAYMENT FORM
-	fmt.Fprintf(w, `
-		<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4 z-50">
-			<div class="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
-				<div class="bg-gray-100 px-4 py-3 border-b flex justify-between items-center">
-					<h3 class="font-bold text-lg">Review & Pay</h3>
-					<button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">&times;</button>
-				</div>
-				
-				<div class="p-6 h-64 overflow-y-auto bg-gray-50 border-b relative">
-					<div class="shadow-sm bg-white p-4 border mx-auto max-w-xl scale-90 origin-top">
-						%s
+	// THE UPDATED MODAL TEMPLATE
+	const modalTemplate = `
+	<div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+		<div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+			<div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="document.getElementById('result').innerHTML=''"></div>
+
+			<div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+				<div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+					<div class="sm:flex sm:items-start">
+						<div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+							<div class="flex justify-between items-center mb-4">
+								<h3 class="text-lg leading-6 font-bold text-gray-900" id="modal-title">Confirm & Send</h3>
+								<button onclick="document.getElementById('result').innerHTML=''" class="text-gray-400 hover:text-gray-500">
+									<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+								</button>
+							</div>
+
+							<div class="border border-gray-200 rounded-md bg-gray-50 p-4 mb-6 max-h-60 overflow-y-auto shadow-inner text-[10px] leading-relaxed">
+								{{.NoticeHTML}}
+							</div>
+
+							<div class="bg-blue-50 p-4 rounded-md border border-blue-100">
+								<div class="flex justify-between items-center mb-3">
+									<span class="font-bold text-blue-900">Total</span>
+									<span class="font-bold text-blue-900 text-xl">$29.00</span>
+								</div>
+								
+								<div id="card-container" class="min-h-[50px] mb-4 bg-white rounded p-1"></div>
+
+								<form id="payment-form" hx-post="/web/pay-and-send" hx-target="#result" hx-swap="innerHTML">
+									{{range $key, $value := .HiddenInputs}}
+										<input type="hidden" name="{{$key}}" value="{{$value}}">
+									{{end}}
+									<input type="hidden" name="square_token" id="square_token_input">
+									
+									<div class="mb-4 flex items-start">
+										<div class="flex items-center h-5">
+											<input id="tos_agree" name="tos_agree" type="checkbox" required 
+												class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+												onchange="document.getElementById('card-button').disabled = !this.checked; document.getElementById('card-button').classList.toggle('opacity-50', !this.checked)">
+										</div>
+										<div class="ml-2 text-xs text-gray-600 text-left">
+											I agree to the <button type="button" onclick="document.getElementById('tos-modal').classList.remove('hidden')" class="text-blue-600 underline">Terms of Service</button> and understand that SendMyNotice is a filing service, not a law firm.
+										</div>
+									</div>
+
+									<button type="button" id="card-button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-3 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:text-sm transition">
+										Pay & Send via Certified Mail
+									</button>
+								</form>
+								<div id="payment-status-container" class="mt-2 text-center text-xs text-red-600 font-bold min-h-[20px]"></div>
+							</div>
+						</div>
 					</div>
 				</div>
-
-				<div class="p-6 bg-white">
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Credit Card Details ($29.00)</label>
-                        <div id="card-container" class="h-12"></div>
-                    </div>
-
-					<div class="flex justify-end gap-3">
-						<button onclick="this.closest('.fixed').remove()" class="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded">Edit</button>
-						
-                        <form id="payment-form" hx-post="/web/pay-and-send" hx-target="#result" hx-swap="innerHTML">
-							<input type="hidden" name="to_name" value="%s">
-                            <input type="hidden" name="to_address1" value="%s">
-                            <input type="hidden" name="to_city" value="%s">
-                            <input type="hidden" name="to_state" value="%s">
-                            <input type="hidden" name="to_zip" value="%s">
-                            
-                            <input type="hidden" name="from_name" value="%s">
-                            <input type="hidden" name="from_address1" value="%s">
-                            <input type="hidden" name="from_city" value="%s">
-                            <input type="hidden" name="from_state" value="%s">
-                            <input type="hidden" name="from_zip" value="%s">
-
-                            <input type="hidden" name="job_description" value="%s">
-                            <input type="hidden" name="estimated_price" value="%s">
-                            <input type="hidden" name="sender_role" value="%s">
-                            <input type="hidden" name="lender_name" value="%s">
-                            <input type="hidden" name="job_site_address" value="%s">
-
-							<input type="hidden" id="square-token" name="square_token">
-
-							<button type="button" id="card-button" class="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700 disabled:opacity-50">
-								Pay $29.00 & Send
-							</button>
-						</form>
-					</div>
+				<div class="bg-gray-50 px-4 py-3 sm:px-6 flex justify-center">
+					<form hx-post="/web/capture-lead" hx-swap="none">
+						<input type="hidden" name="email" value="{{index .HiddenInputs "user_email"}}">
+						<input type="hidden" name="from_name" value="{{.FromName}}">
+						<input type="hidden" name="sender_role" value="{{.SenderRole}}">
+						<button type="submit" class="text-xs text-gray-400 hover:text-gray-600 underline">
+							No thanks, I'll print it myself
+						</button>
+					</form>
 				</div>
 			</div>
-            
-            <script>
-                (async function() {
-                    const payments = Square.payments('%s', '%s');
-                    const card = await payments.card();
-                    await card.attach('#card-container');
-
-                    const cardButton = document.getElementById('card-button');
-                    cardButton.addEventListener('click', async () => {
-                        cardButton.disabled = true;
-                        cardButton.innerText = "Processing...";
-                        
-                        try {
-                            const result = await card.tokenize();
-                            if (result.status === 'OK') {
-                                document.getElementById('square-token').value = result.token;
-                                // Trigger HTMX submission manually
-                                htmx.trigger('#payment-form', 'submit');
-                            } else {
-                                alert(result.errors[0].message);
-                                cardButton.disabled = false;
-                                cardButton.innerText = "Pay & Send";
-                            }
-                        } catch (e) {
-                            console.error(e);
-                            cardButton.disabled = false;
-                            cardButton.innerText = "Pay & Send";
-                        }
-                    });
-                })();
-            </script>
 		</div>
-	`,
-		htmlBuffer.String(),
-        // Hidden Inputs Args
-		r.FormValue("to_name"), r.FormValue("to_address1"), r.FormValue("to_city"), r.FormValue("to_state"), r.FormValue("to_zip"),
-		r.FormValue("from_name"), r.FormValue("from_address1"), r.FormValue("from_city"), r.FormValue("from_state"), r.FormValue("from_zip"),
-		r.FormValue("job_description"), r.FormValue("estimated_price"), r.FormValue("sender_role"), r.FormValue("lender_name"),
-		jobSiteAddress,
-        // Square IDs for JS
-        s.squareAppID, s.squareLocID,
-	)
+
+		<script>
+			async function initializeCard(appId, locationId) {
+				if (!window.Square) { 
+					console.error("Square JS not loaded");
+					return;
+				}
+				
+				try {
+					const payments = Square.payments(appId, locationId);
+					const card = await payments.card();
+					await card.attach('#card-container');
+
+					document.getElementById('card-button').addEventListener('click', async () => {
+						const statusContainer = document.getElementById('payment-status-container');
+						const btn = document.getElementById('card-button');
+						
+						// Disable button to prevent double charge
+						btn.disabled = true;
+						btn.innerText = "Processing...";
+						statusContainer.innerText = "";
+						
+						try {
+							const result = await card.tokenize();
+							if (result.status === 'OK') {
+								// Inject token into hidden field inside the form
+								document.getElementById('square_token_input').value = result.token;
+								// Trigger HTMX manually on the form
+								htmx.trigger('#payment-form', 'submit');
+							} else {
+								statusContainer.innerText = result.errors[0].message;
+								btn.disabled = false;
+								btn.innerText = "Pay & Send via Certified Mail";
+							}
+						} catch (e) {
+							console.error(e);
+							statusContainer.innerText = "Payment System Error. Try again.";
+							btn.disabled = false;
+							btn.innerText = "Pay & Send via Certified Mail";
+						}
+					});
+				} catch (e) {
+					console.error("Square Init Error:", e);
+				}
+			}
+			initializeCard('{{.SquareAppID}}', '{{.SquareLocID}}');
+		</script>
+	</div>
+	`
+
+	t, _ := template.New("modal").Parse(modalTemplate)
+	t.Execute(w, modalData)
 }
 
 // handlePayAndSend: Charges card, THEN sends letter
@@ -318,21 +444,33 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 			AddressZip:     r.FormValue("from_zip"),
 			AddressCountry: "US",
 		},
-		Color: false,
-		File:  htmlBuffer.String(),
+		Color:        false,
+		File:         htmlBuffer.String(),
 		ExtraService: "certified", // This triggers the Tracking Number
 	}
 
 	resp, err := s.mailer.SendLetter(req)
 	if err != nil {
 		log.Printf("Mailer error: %v", err)
+
+		// --- NEW: REFUND LOGIC ---
+		refundErr := s.payment.RefundPayment(r.Context(), paymentID)
+		refundMsg := "Your card was refunded automatically."
+		if refundErr != nil {
+			// In a real app, pageer duty triggers here.
+			// For MVP, we log loud and tell user to contact support.
+			log.Printf("CRITICAL: FAILED TO REFUND %s: %v", paymentID, refundErr)
+			refundMsg = fmt.Sprintf("Refund failed. Please contact support with Ref: %s", paymentID)
+		}
+		// -------------------------
+
 		var userErr *apierrors.UserError
 		if errors.As(err, &userErr) {
-			fmt.Fprintf(w, `<div class="p-4 bg-yellow-50 text-yellow-800 border border-yellow-400 rounded"><p class="font-bold">Check Address:</p><p>%s</p></div>`, userErr.UserMessage)
+			fmt.Fprintf(w, `<div class="p-4 bg-yellow-50 text-yellow-800 border border-yellow-400 rounded"><p class="font-bold">Address Error:</p><p>%s</p><p class="text-sm mt-2 font-bold">%s</p></div>`, userErr.UserMessage, refundMsg)
 			return
 		}
-		// Critical: Payment succeeded but mail failed. In production, you'd alert yourself here.
-		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">System Error: Payment ID %s was successful, but letter generation failed. Please contact support.</div>`, paymentID)
+
+		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">System Error: Letter generation failed. %s</div>`, refundMsg)
 		return
 	}
 
@@ -383,14 +521,14 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
                 </div>
             </div>
         </div>
-    `, 
-    paymentID,           // Ref
-    resp.TrackingNumber, // Tracking Display
-    trackingLink,        // Tracking Href
-    encodedURL,          // PDF Poller
-    )
+    `,
+		paymentID,           // Ref
+		resp.TrackingNumber, // Tracking Display
+		trackingLink,        // Tracking Href
+		encodedURL,          // PDF Poller
+	)
 
-    w.Write([]byte(successHTML))
+	w.Write([]byte(successHTML))
 }
 
 // handleLookupOwner: Still here if you ever un-hide the tool, but now purely for UI feedback
@@ -453,23 +591,27 @@ func (s *Server) renderOwnerFields(w http.ResponseWriter, name, addr, city, stat
 	`, statusBadge, nameVal, namePlaceholder, inputBorder, bgClass, addr, city, state, zip)
 }
 
-// handleCheckPDFStatus proxies a check to the Lob URL.
-// If the URL returns 200 OK, we render the Download Button.
-// If the URL returns 404 (or other), we render the "Generating..." spinner again (recursive polling).
 func (s *Server) handleCheckPDFStatus(w http.ResponseWriter, r *http.Request) {
 	pdfURL := r.URL.Query().Get("url") // This decodes the %26 back to & automatically
 	if pdfURL == "" {
-		return 
+		return
+	}
+
+	// SECURITY CHECK: Only allow Lob URLs
+	// Assuming Lob URLs look like "https://lob-assets.com/..."
+	if !strings.HasPrefix(pdfURL, "https://") || !strings.Contains(pdfURL, "lob") {
+		http.Error(w, "Invalid URL", http.StatusForbidden)
+		return
 	}
 
 	// 1. Check if the PDF exists (Using the decoded, valid URL)
 	resp, err := http.Head(pdfURL)
-	
+
 	// 2. LOGIC: If it's NOT ready, keep polling
 	if err != nil || resp.StatusCode != http.StatusOK {
-        
-        // FIX: Re-Encode the URL for the next HTMX request
-        encodedURL := url.QueryEscape(pdfURL)
+
+		// FIX: Re-Encode the URL for the next HTMX request
+		encodedURL := url.QueryEscape(pdfURL)
 
 		fmt.Fprintf(w, `
 			<div hx-get="/web/check-pdf?url=%s" 

@@ -73,3 +73,26 @@ func (c *Client) ChargeCard(ctx context.Context, sourceID string, amountCents in
 	log.Printf("💰 Payment Successful! ID: %s", paymentID)
 	return paymentID, nil
 }
+
+// RefundPayment refunds a payment if the letter generation fails
+func (c *Client) RefundPayment(ctx context.Context, paymentID string) error {
+    idempotencyKey := uuid.New().String()
+    amountMoney := &square.Money{
+        Amount:   nil, // Full refund if nil
+        Currency: square.CurrencyUsd.Ptr(),
+    }
+
+    req := &square.RefundPaymentRequest{
+        IdempotencyKey: idempotencyKey,
+        PaymentID:      &paymentID,
+        AmountMoney:    amountMoney,
+        Reason:         func() *string { s := "System Error - Letter Not Sent"; return &s }(),
+    }
+
+    _, err := c.square.Refunds.RefundPayment(ctx, req)
+    if err != nil {
+        return fmt.Errorf("refund failed (CRITICAL - MANUALLY REFUND %s): %w", paymentID, err)
+    }
+    log.Printf("💸 Refunded Payment %s successfully", paymentID)
+    return nil
+}

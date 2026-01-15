@@ -2,128 +2,158 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <title>Preliminary Notice</title>
     <style>
+        /* HIGH VALUE LEGAL STYLING */
         body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
-            font-size: 12px;
+            font-family: 'Times New Roman', Times, serif; /* Serifs look like law */
+            font-size: 11pt;
             line-height: 1.5;
-            color: #000;
-            padding: 40px;
+            color: #000; /* Pure black for print */
+            margin: 0;
         }
-        .header {
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-        }
-        .title {
-            font-size: 16px;
+
+        /* The "Official" Header */
+        .sender-brand {
+            font-family: 'Helvetica', sans-serif; /* Contrast font for the brand */
+            font-size: 16pt;
+            font-weight: 900;
             text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        .subtitle {
-            font-size: 12px;
-            font-style: italic;
-        }
-        .warning {
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-        .section {
-            margin-bottom: 15px;
-        }
-        .section-title {
-            font-weight: bold;
-            text-decoration: underline;
-        }
-        .field-label {
-            font-weight: bold;
-            display: inline-block;
-            width: 150px;
-        }
-        /* LEGAL REQUIREMENT: NOTICE TO PROPERTY OWNER MUST BE BOLD & 10PT+ */
+
+        /* The "Legal Box" - Make it look like a government form */
         .notice-box {
-            border: 2px solid #000;
-            padding: 15px;
-            margin-top: 30px;
-            background-color: #f9f9f9;
-            font-size: 11px; /* explicitly > 10pt */
+            border: 3px solid #000; /* Thicker border */
+            padding: 20px;
+            margin-top: 20px;
+            background-color: #fff; /* Remove grey background for clean print */
+            font-family: 'Arial Narrow', Arial, sans-serif; /* Condensed font for statutory text */
+            font-size: 9pt; 
             font-weight: bold;
+            text-align: justify;
+        }
+
+        .field-label {
+            font-family: 'Helvetica', sans-serif;
+            font-size: 8pt;
             text-transform: uppercase;
+            color: #666;
+            display: block; /* Label above value looks more modern/form-like */
+            margin-bottom: 2px;
         }
-        .notice-header {
-            text-align: center;
-            font-size: 14px;
-            margin-bottom: 10px;
-            text-decoration: underline;
-        }
-        .normal-case {
-            text-transform: none;
+        
+        .field-value {
+            display: block;
+            font-family: 'Courier New', monospace;
+            font-size: 11pt;
+            font-weight: bold;
+            border-bottom: 1px solid #ddd; /* Underline the data */
+            padding-bottom: 4px;
+            margin-bottom: 12px;
+            width: 100%;
         }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div class="title">CALIFORNIA PRELIMINARY NOTICE</div>
-        <div class="subtitle">(Pursuant to Civil Code Sections 8200 et seq.)</div>
+    <div class="cover-container">
+        <div class="cover-header">
+            <div class="sender-brand">{{.SenderName}}</div>
+            <div style="font-size: 10pt; color: #666;">{{.Date}}</div>
+        </div>
+
+        <div style="margin-bottom: 30px;">
+            <strong>To:</strong><br>
+            {{.OwnerName}}<br>
+            {{.OwnerAddress}}
+        </div>
+
+        <div class="cover-body">
+            <p class="cover-p">Dear Property Owner,</p>
+
+            <p class="cover-p">
+                We are currently working on your project at <strong>{{.JobSiteAddress}}</strong>. 
+                We are excited to be part of the team improving your property.
+            </p>
+
+            <p class="cover-p">
+                As part of our standard accounting practices, and in compliance with California State Law, 
+                we are required to provide this <strong>Preliminary Notice</strong> to all property owners for jobs exceeding $500.
+            </p>
+
+            <p class="cover-p" style="background-color: #eff6ff; padding: 15px; border-left: 4px solid #2563eb;">
+                <strong>Please Note:</strong> This is <u>not</u> a lien against your property. It is simply a routine legal notice 
+                that preserves our right to be paid fairly for the work we perform. 
+                If you have already paid your direct contractor, this notice helps ensure that your payment 
+                is properly distributed to all subcontractors and suppliers.
+            </p>
+
+            <p class="cover-p">
+                No action is required from you at this time. We appreciate your business and look forward to completing a successful project.
+            </p>
+
+            <br><br>
+            <p>Sincerely,</p>
+            <p class="bold">{{.SenderName}}</p>
+        </div>
     </div>
 
-    <div class="warning">
-        DATE: {{.Date}}<br>
-        DO NOT DISREGARD THIS NOTICE.<br>
-        THIS IS NOT A LIEN. THIS IS NOT A REFLECTION ON THE INTEGRITY OF ANY CONTRACTOR OR SUBCONTRACTOR.
-    </div>
+    <div class="page-break"></div>
 
-    <div class="section">
-        <div class="section-title">1. CLAIMANT (PERSON/FIRM SENDING NOTICE):</div>
-        <div><span class="field-label">Name:</span> {{.SenderName}}</div>
-        <div><span class="field-label">Address:</span> {{.SenderAddress}}</div>
-        <div><span class="field-label">Relationship:</span> {{.SenderRole}}</div>
-    </div>
+    <div class="notice-container">
+        <div class="notice-box">
+            <div class="center" style="text-decoration: underline; margin-bottom: 10px;">NOTICE TO PROPERTY OWNER</div>
+            
+            <p style="margin-bottom: 10px;">
+                EVEN THOUGH YOU HAVE PAID YOUR CONTRACTOR IN FULL, if the person or firm that has given you this notice is not paid in full for labor, service, equipment, or material provided or to be provided to your construction project, a lien may be placed on your property. Foreclosure of the lien may lead to loss of all or part of your property. You may wish to protect yourself against this consequence by (1) requiring your contractor to furnish a signed release by the person or firm that has given you this notice before making payment to your contractor or (2) any other method for protection that is appropriate under the circumstances.
+            </p>
+            
+            <p style="text-transform: none; font-weight: normal; margin-bottom: 10px;">
+                This notice is required by law to be served by the undersigned as a statement of your legal rights. This notice is not intended to reflect upon the financial condition of the contractor or the person employed by you on the construction project.
+            </p>
+            
+            <p style="text-transform: none; font-weight: normal;">
+                If you record a notice of cessation or completion of your construction project, you must within 10 days after recording, send a copy of the notice of cessation or completion to your contractor and the person or firm that has given you this notice. The failure to send you a notice of cessation or completion will extend the deadline to record a claim of lien. You are not required to send these notices unless you are a residential homeowner of a dwelling containing four or fewer units.
+            </p>
+        </div>
+        <div class="legal-header">
+            <div class="legal-title uppercase">California Preliminary Notice</div>
+            <div class="legal-subtitle">(Pursuant to Civil Code Sections 8200 et seq.)</div>
+        </div>
 
-    <div class="section">
-        <div class="section-title">2. PERSON/FIRM TO WHOM NOTICE IS GIVEN:</div>
-        <div><span class="field-label">Direct Contractor:</span> (Check Contract if distinct from Claimant)</div>
-        <div><span class="field-label">Owner:</span> {{.OwnerName}} - {{.OwnerAddress}}</div>
-        {{if .LenderName}}
-        <div><span class="field-label">Construction Lender:</span> {{.LenderName}}</div>
-        {{else}}
-        <div><span class="field-label">Construction Lender:</span> N/A</div>
-        {{end}}
-    </div>
+        <div class="section">
+            <div style="border-bottom: 1px solid #ccc; margin-bottom: 5px;"><strong>1. CLAIMANT (PERSON/FIRM SENDING NOTICE):</strong></div>
+            <div><span class="field-label">Name:</span> <span class="field-value">{{.SenderName}}</span></div>
+            <div><span class="field-label">Address:</span> <span class="field-value">{{.SenderAddress}}</span></div>
+            <div><span class="field-label">Role:</span> <span class="field-value">{{.SenderRole}}</span></div>
+        </div>
 
-    <div class="section">
-        <div class="section-title">3. DESCRIPTION OF WORK:</div>
-        <div>General description of labor, service, equipment, or materials provided or to be provided:</div>
-        <div style="margin-left: 20px; font-style: italic;">"{{.JobDescription}}"</div>
-    </div>
+        <div class="section">
+            <div style="border-bottom: 1px solid #ccc; margin-bottom: 5px;"><strong>2. PERSON/FIRM TO WHOM NOTICE IS GIVEN:</strong></div>
+            <div><span class="field-label">Owner:</span> <span class="field-value">{{.OwnerName}}</span></div>
+            <div><span class="field-label">Owner Address:</span> <span class="field-value">{{.OwnerAddress}}</span></div>
+            <div><span class="field-label">Lender:</span> <span class="field-value">{{if .LenderName}}{{.LenderName}}{{else}}N/A{{end}}</span></div>
+        </div>
 
-    <div class="section">
-        <div class="section-title">4. JOB SITE:</div>
-        <div>Address or description sufficient for identification:</div>
-        <div style="margin-left: 20px; font-weight: bold;">{{.JobSiteAddress}}</div>
-    </div>
+        <div class="section">
+            <div style="border-bottom: 1px solid #ccc; margin-bottom: 5px;"><strong>3. DESCRIPTION OF WORK:</strong></div>
+            <div class="italic">"{{.JobDescription}}"</div>
+        </div>
 
-    <div class="section">
-        <div class="section-title">5. ESTIMATED TOTAL PRICE:</div>
-        <div>The estimated total price of the labor, service, equipment, or materials provided or to be provided is: <strong>${{.EstimatedPrice}}</strong></div>
-    </div>
+        <div class="section">
+            <div style="border-bottom: 1px solid #ccc; margin-bottom: 5px;"><strong>4. JOB SITE:</strong></div>
+            <div class="field-value">{{.JobSiteAddress}}</div>
+        </div>
 
-    <div class="notice-box">
-        <div class="notice-header">NOTICE TO PROPERTY OWNER</div>
-        
-        <p>
-            EVEN THOUGH YOU HAVE PAID YOUR CONTRACTOR IN FULL, if the person or firm that has given you this notice is not paid in full for labor, service, equipment, or material provided or to be provided to your construction project, a lien may be placed on your property. Foreclosure of the lien may lead to loss of all or part of your property. You may wish to protect yourself against this consequence by (1) requiring your contractor to furnish a signed release by the person or firm that has given you this notice before making payment to your contractor or (2) any other method for protection that is appropriate under the circumstances.
-        </p>
-        
-        <p class="normal-case">
-            This notice is required by law to be served by the undersigned as a statement of your legal rights. This notice is not intended to reflect upon the financial condition of the contractor or the person employed by you on the construction project.
-        </p>
-        
-        <p class="normal-case">
-            If you record a notice of cessation or completion of your construction project, you must within 10 days after recording, send a copy of the notice of cessation or completion to your contractor and the person or firm that has given you this notice. The failure to send you a notice of cessation or completion will extend the deadline to record a claim of lien. You are not required to send these notices unless you are a residential homeowner of a dwelling containing four or fewer units.
-        </p>
+        <div class="section">
+            <div style="border-bottom: 1px solid #ccc; margin-bottom: 5px;"><strong>5. ESTIMATED TOTAL PRICE:</strong></div>
+            <div class="field-value">${{.EstimatedPrice}}</div>
+        </div>
+
+        <div class="section" style="color: red; font-weight: bold; font-size: 9pt; margin-bottom: 20px;">
+            DO NOT DISREGARD THIS NOTICE. THIS IS NOT A LIEN. THIS IS NOT A REFLECTION ON THE INTEGRITY OF ANY CONTRACTOR OR SUBCONTRACTOR.
+        </div>
     </div>
 
 </body>
