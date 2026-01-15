@@ -262,8 +262,10 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 								</button>
 							</div>
 
-							<div class="border border-gray-200 rounded-md bg-gray-50 p-4 mb-6 max-h-60 overflow-y-auto shadow-inner text-[10px] leading-relaxed">
-								{{.NoticeHTML}}
+							<div class="border border-gray-200 rounded-md bg-gray-50 mb-6 max-h-[500px] overflow-y-auto shadow-inner overflow-x-hidden relative">
+								<div style="width: 60vw; transform: scale(0.45); transform-origin: top left;">
+									{{.NoticeHTML}}
+								</div>
 							</div>
 
 							<div class="bg-blue-50 p-4 rounded-md border border-blue-100">
