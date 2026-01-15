@@ -49,6 +49,7 @@ type Server struct {
 	squareAppID string
 	squareLocID string
 	squareJsURL string
+	homeTemplate *template.Template
 }
 
 func main() {
@@ -87,12 +88,18 @@ func main() {
 	// 3. Initialize Clients
 	payClient := payment.NewClient(squareToken, squareEnv)
 
+	tmpl, err := template.ParseFiles("web/index.html")
+    if err != nil {
+        log.Fatal("Failed to parse index.html: ", err)
+    }
+
 	srv := &Server{
 		mailer:      mailer.NewClient(strings.TrimSpace(lobKey)),
 		payment:     payClient,
 		squareAppID: squareAppID,
 		squareLocID: squareLocID,
 		squareJsURL: squareJsURL,
+		homeTemplate: tmpl,
 	}
 
 	// 3. Setup Router
@@ -105,8 +112,16 @@ func main() {
 	filesDir := http.Dir(fmt.Sprintf("%s/web", workDir))
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(filesDir)))
 
-	// Web Routes
+	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "favicon.ico")
+	})
+
+	r.Get("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "User-agent: *\nAllow: /")
+	})
+	
 	r.Get("/", srv.handleHome)
+
 	r.Post("/web/preview", srv.handleWebPreview)
 
 	// NEW: Merged Payment + Sending into one atomic action
@@ -136,22 +151,16 @@ func main() {
 }
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
-    tmpl, err := template.ParseFiles("web/index.html")
-    if err != nil {
-        http.Error(w, "Could not load page", http.StatusInternalServerError)
-        return
-    }
-
-    // UPDATE: Pass the date for the "System Online" bar
     data := PageData{
         SquareJsURL: s.squareJsURL,
         CurrentDate: time.Now().Format("Jan 02, 2006"),
     }
-    tmpl.Execute(w, data)
+    // [FIX] Execute the cached template
+    if err := s.homeTemplate.Execute(w, data); err != nil {
+        log.Printf("Template execution failed: %v", err)
+        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+    }
 }
-
-// handleWebPreview: Renders the confirmation modal
-// server/main.go (Updated handleWebPreview)
 
 func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
@@ -223,6 +232,9 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 		EstimatedPrice: r.FormValue("estimated_price"),
 		LenderName:     r.FormValue("lender_name"),
 	}
+
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
 
 	noticeTmpl, _ := template.ParseFS(templates.GetNoticeFS(), "notice.html")
 	var noticeBuff bytes.Buffer

@@ -31,6 +31,15 @@ COPY --from=builder /app/server .
 # Copy the "web" folder (HTML/CSS) because your code reads it at runtime
 COPY --from=builder /app/web ./web
 
+# Copy the binary
+COPY --from=builder /app/server .
+
+# Copy the "web" folder
+COPY --from=builder /app/web ./web
+
+# [FIX] Copy the favicon
+COPY --from=builder /app/favicon.ico .
+
 # Expose the port
 EXPOSE 8080
 

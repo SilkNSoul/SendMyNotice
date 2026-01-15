@@ -34,8 +34,6 @@ func NewClient(accessToken, env string) *Client {
 	}
 }
 
-// ChargeCard processes a payment using a sourceID (token) from the frontend
-// amountCents: 1500 = $15.00
 func (c *Client) ChargeCard(ctx context.Context, sourceID string, amountCents int64, userEmail string) (string, error) {
 	// 1. Generate Idempotency Key
 	idempotencyKey := uuid.New().String()
