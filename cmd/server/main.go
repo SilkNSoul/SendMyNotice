@@ -435,7 +435,7 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Charge $29.00 (2900 cents)
-	paymentID, err := s.payment.ChargeCard(r.Context(), token, 98, userEmail)
+	paymentID, err := s.payment.ChargeCard(r.Context(), token, 2900, userEmail)
 	if err != nil {
 		log.Printf("Payment Error: %v", err)
 		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Payment Declined: %s</div>`, err.Error())
