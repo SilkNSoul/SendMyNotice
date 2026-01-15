@@ -36,7 +36,7 @@ func NewClient(accessToken, env string) *Client {
 
 // ChargeCard processes a payment using a sourceID (token) from the frontend
 // amountCents: 1500 = $15.00
-func (c *Client) ChargeCard(ctx context.Context, sourceID string, amountCents int64) (string, error) {
+func (c *Client) ChargeCard(ctx context.Context, sourceID string, amountCents int64, userEmail string) (string, error) {
 	// 1. Generate Idempotency Key
 	idempotencyKey := uuid.New().String()
 
@@ -49,11 +49,12 @@ func (c *Client) ChargeCard(ctx context.Context, sourceID string, amountCents in
 	noteTemplate := "SendMyNotice Service Fee"
 
 	req := &square.CreatePaymentRequest{
-		SourceID:       sourceID,
-		IdempotencyKey: idempotencyKey,
-		AmountMoney:    amount,
-		Note:           &noteTemplate,
-	}
+        SourceID:       sourceID,
+        IdempotencyKey: idempotencyKey,
+        AmountMoney:    amount,
+        Note:           &noteTemplate,
+        BuyerEmailAddress: &userEmail, 
+    }
 
 	// 3. Execute
 	resp, err := c.square.Payments.Create(ctx, req)

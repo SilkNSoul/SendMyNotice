@@ -23,65 +23,24 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+var fileMutex sync.Mutex
+
 type DiscordMessage struct {
 	Content string `json:"content"`
 }
 
-// Add a simple thread-safe logger
-var fileMutex sync.Mutex
-
-func (s *Server) logLead(email, name, role string) {
-    // structured log entry
-    entry := map[string]string{
-        "event":     "LEAD_CAPTURE", // Easy to grep in Railway logs
-        "timestamp": time.Now().Format(time.RFC3339),
-        "email":     email,
-        "name":      name,
-        "role":      role,
-        "status":    "FREE_TIER_DOWNLOAD",
-    }
-
-    // Write to STDOUT (Railway captures this)
-    jsonBytes, _ := json.Marshal(entry)
-    fmt.Println(string(jsonBytes)) 
+type PageData struct {
+    SquareJsURL string
+    CurrentDate string
 }
 
-func (s *Server) sendLeadToDiscord(email, name, role string) {
-    webhookURL := os.Getenv("DISCORD_WEBHOOK_URL")
-    if webhookURL == "" {
-        // Log to stdout so you see it in Railway
-        fmt.Println("⚠️ SKIPPING DISCORD: DISCORD_WEBHOOK_URL not set")
-        return
-    }
-
-    // Make the message prettier
-    msg := DiscordMessage{
-        Content: fmt.Sprintf(
-            "🔔 **New Lead!**\n👤 **Name:** %s\n📧 **Email:** `%s`\n🛠 **Role:** %s\n🕒 **Time:** <t:%d:R>",
-            name, email, role, time.Now().Unix(),
-        ),
-    }
-
-    payload, _ := json.Marshal(msg)
-    resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
-    if err != nil {
-        fmt.Printf("❌ Failed to send to Discord: %v\n", err)
-        return
-    }
-    defer resp.Body.Close()
-}
-
-func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {
-	email := r.FormValue("email")
-	name := r.FormValue("from_name")
-	role := r.FormValue("sender_role")
-
-	// Send to Discord (Non-blocking)
-	go s.sendLeadToDiscord(email, name, role)
-
-	// Return the Javascript to trigger the print dialog
-	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, `<script>window.print();</script>`)
+type OrderRecord struct {
+    Time           string `json:"time"`
+    PaymentID      string `json:"payment_id"`
+    TrackingNumber string `json:"tracking_number"`
+    Amount         string `json:"amount"`
+    UserEmail      string `json:"user_email"`
+    JobAddress     string `json:"job_address"`
 }
 
 type Server struct {
@@ -166,15 +125,18 @@ func main() {
 }
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
-	// Parse the index file as a template so we can inject the JS URL
-	tmpl, err := template.ParseFiles("web/index.html")
-	if err != nil {
-		http.Error(w, "Could not load page", http.StatusInternalServerError)
-		return
-	}
+    tmpl, err := template.ParseFiles("web/index.html")
+    if err != nil {
+        http.Error(w, "Could not load page", http.StatusInternalServerError)
+        return
+    }
 
-	data := struct{ SquareJsURL string }{SquareJsURL: s.squareJsURL}
-	tmpl.Execute(w, data)
+    // UPDATE: Pass the date for the "System Online" bar
+    data := PageData{
+        SquareJsURL: s.squareJsURL,
+        CurrentDate: time.Now().Format("Jan 02, 2006"),
+    }
+    tmpl.Execute(w, data)
 }
 
 // handleWebPreview: Renders the confirmation modal
@@ -234,6 +196,8 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 			"user_email":       r.FormValue("user_email"),
 		},
 	}
+
+	go s.sendLeadToDiscord(r.FormValue("user_email"), r.FormValue("from_name"), "LEAD_PREVIEW_GENERATED")
 
 	// Render the Inner Notice HTML (Visual Preview)
 	data := mailer.NoticeData{
@@ -389,12 +353,21 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userEmail := r.FormValue("user_email")
+
 	// Charge $29.00 (2900 cents)
-	paymentID, err := s.payment.ChargeCard(r.Context(), token, 2900)
+	paymentID, err := s.payment.ChargeCard(r.Context(), token, 2900, userEmail)
 	if err != nil {
 		log.Printf("Payment Error: %v", err)
 		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Payment Declined: %s</div>`, err.Error())
 		return
+	}
+
+	finalJobSite := r.FormValue("job_site_address")
+	if finalJobSite == "" {
+		// If they checked "Same as Owner", this field is empty, so we construct it from Owner Addr
+		finalJobSite = fmt.Sprintf("%s, %s, %s %s", 
+			r.FormValue("to_address1"), r.FormValue("to_city"), r.FormValue("to_state"), r.FormValue("to_zip"))
 	}
 
 	// 2. GENERATE & SEND LETTER (Only runs if payment succeeds)
@@ -405,7 +378,7 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		SenderRole:     r.FormValue("sender_role"),
 		OwnerName:      r.FormValue("to_name"),
 		OwnerAddress:   fmt.Sprintf("%s, %s, %s %s", r.FormValue("to_address1"), r.FormValue("to_city"), r.FormValue("to_state"), r.FormValue("to_zip")),
-		JobSiteAddress: r.FormValue("job_site_address"),
+		JobSiteAddress: finalJobSite,
 		JobDescription: r.FormValue("job_description"),
 		EstimatedPrice: r.FormValue("estimated_price"),
 		LenderName:     r.FormValue("lender_name"),
@@ -475,6 +448,9 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. SUCCESS HTML
+	s.recordSuccess(paymentID, resp.TrackingNumber, userEmail, finalJobSite)
+	go s.sendLeadToDiscord(userEmail, r.FormValue("from_name"), "PAID_CUSTOMER_$$$")
+	
 	encodedURL := url.QueryEscape(resp.URL)
 	trackingLink := fmt.Sprintf("https://tools.usps.com/go/TrackConfirmAction?tLabels=%s", resp.TrackingNumber)
 
@@ -630,4 +606,85 @@ func (s *Server) handleCheckPDFStatus(w http.ResponseWriter, r *http.Request) {
 			View PDF Proof
 		</a>
 	`, pdfURL) // <--- Clickable link can use raw URL (browser handles it)
+}
+
+
+func (s *Server) logLead(email, name, role string) {
+    // structured log entry
+    entry := map[string]string{
+        "event":     "LEAD_CAPTURE", // Easy to grep in Railway logs
+        "timestamp": time.Now().Format(time.RFC3339),
+        "email":     email,
+        "name":      name,
+        "role":      role,
+        "status":    "FREE_TIER_DOWNLOAD",
+    }
+
+    // Write to STDOUT (Railway captures this)
+    jsonBytes, _ := json.Marshal(entry)
+    fmt.Println(string(jsonBytes)) 
+}
+
+func (s *Server) sendLeadToDiscord(email, name, role string) {
+    webhookURL := os.Getenv("DISCORD_WEBHOOK_URL")
+    if webhookURL == "" {
+        // Log to stdout so you see it in Railway
+        fmt.Println("⚠️ SKIPPING DISCORD: DISCORD_WEBHOOK_URL not set")
+        return
+    }
+
+    // Make the message prettier
+    msg := DiscordMessage{
+        Content: fmt.Sprintf(
+            "🔔 **New Lead!**\n👤 **Name:** %s\n📧 **Email:** `%s`\n🛠 **Role:** %s\n🕒 **Time:** <t:%d:R>",
+            name, email, role, time.Now().Unix(),
+        ),
+    }
+
+    payload, _ := json.Marshal(msg)
+    resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
+    if err != nil {
+        fmt.Printf("❌ Failed to send to Discord: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
+}
+
+func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {
+	email := r.FormValue("email")
+	name := r.FormValue("from_name")
+	role := r.FormValue("sender_role")
+
+	// Send to Discord (Non-blocking)
+	go s.sendLeadToDiscord(email, name, role)
+
+	// Return the Javascript to trigger the print dialog
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<script>window.print();</script>`)
+}
+
+func (s *Server) recordSuccess(paymentID, tracking, email, jobAddr string) {
+    record := OrderRecord{
+        Time:           time.Now().Format(time.RFC3339),
+        PaymentID:      paymentID,
+        TrackingNumber: tracking,
+        Amount:         "$29.00",
+        UserEmail:      email,
+        JobAddress:     jobAddr,
+    }
+
+    fileMutex.Lock() // Ensure thread safety
+    defer fileMutex.Unlock()
+
+    f, err := os.OpenFile("orders.jsonl", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    if err != nil {
+        log.Printf("CRITICAL: COULD NOT WRITE TO ORDERS FILE: %v", err)
+        return
+    }
+    defer f.Close()
+
+    jsonBytes, _ := json.Marshal(record)
+    if _, err := f.Write(append(jsonBytes, '\n')); err != nil {
+        log.Printf("CRITICAL: WRITE FAILED: %v", err)
+    }
 }
