@@ -74,10 +74,12 @@ func (c *Client) ChargeCard(ctx context.Context, sourceID string, amountCents in
 }
 
 // RefundPayment refunds a payment if the letter generation fails
-func (c *Client) RefundPayment(ctx context.Context, paymentID string) error {
+func (c *Client) RefundPayment(ctx context.Context, paymentID string, amountCents int64) error {
     idempotencyKey := uuid.New().String()
+    
+    // [FIX] Explicitly set the amount. Square API dislikes 'nil' for amount in some contexts.
     amountMoney := &square.Money{
-        Amount:   nil, // Full refund if nil
+        Amount:   &amountCents, 
         Currency: square.CurrencyUsd.Ptr(),
     }
 

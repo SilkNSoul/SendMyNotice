@@ -385,6 +385,8 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
+	const amountToCharge int64 = 98
+
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "<div class='text-red-500'>Error parsing form</div>", http.StatusBadRequest)
 		return
@@ -435,7 +437,7 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Charge $29.00 (2900 cents)
-	paymentID, err := s.payment.ChargeCard(r.Context(), token, 2900, userEmail)
+	paymentID, err := s.payment.ChargeCard(r.Context(), token, amountToCharge, userEmail)
 	if err != nil {
 		log.Printf("Payment Error: %v", err)
 		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Payment Declined: %s</div>`, err.Error())
@@ -471,7 +473,7 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Mailer error: %v", err)
 
-		refundErr := s.payment.RefundPayment(r.Context(), paymentID)
+		refundErr := s.payment.RefundPayment(r.Context(), paymentID, amountToCharge)
 		refundMsg := "Your card was refunded automatically."
 		if refundErr != nil {
 			// In a real app, pageer duty triggers here.
