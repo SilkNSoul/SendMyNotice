@@ -168,6 +168,11 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.FormValue("sender_role") == "" {
+        http.Error(w, "<div class='text-red-600 font-bold p-4'>Error: You must select a specific Role (e.g., Subcontractor) to generate a valid legal notice.</div>", http.StatusBadRequest)
+        return
+    }
+
 	// Logic: If Job Site is blank, default to Owner Address
 	jobSiteAddress := r.FormValue("job_site_address")
 	if jobSiteAddress == "" {
@@ -398,6 +403,12 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Error: Missing Payment Information</div>`)
 		return
 	}
+
+	if r.FormValue("sender_role") == "" {
+        // This is critical because if we charge them and the PDF is missing the role, the notice is invalid.
+        fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Error: Role is required. Please refresh and select your role.</div>`)
+        return
+    }
 
 	userEmail := r.FormValue("user_email")
 
