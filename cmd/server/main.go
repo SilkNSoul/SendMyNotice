@@ -293,7 +293,7 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 										</div>
 									</div>
 
-									<button type="button" id="card-button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-3 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:text-sm transition">
+									<button type="button" id="card-button" disabled class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-3 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:text-sm transition opacity-50 cursor-not-allowed">
 										Pay & Send via Certified Mail
 									</button>
 
