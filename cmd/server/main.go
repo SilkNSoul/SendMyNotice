@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -93,6 +94,8 @@ func main() {
 	// but strictly for manual entry fallback logic.
 	r.Post("/web/lookup-owner", srv.handleLookupOwner)
 
+	r.Get("/web/check-pdf", srv.handleCheckPDFStatus)
+
 	log.Println("🚀 Server starting on :8080")
 	http.ListenAndServe(":8080", r)
 }
@@ -150,7 +153,7 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-// RENDER THE MODAL WITH PAYMENT FORM
+	// RENDER THE MODAL WITH PAYMENT FORM
 	fmt.Fprintf(w, `
 		<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4 z-50">
 			<div class="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
@@ -167,7 +170,7 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 
 				<div class="p-6 bg-white">
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Credit Card Details ($15.00)</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Credit Card Details ($25.00)</label>
                         <div id="card-container" class="h-12"></div>
                     </div>
 
@@ -196,7 +199,7 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 							<input type="hidden" id="square-token" name="square_token">
 
 							<button type="button" id="card-button" class="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700 disabled:opacity-50">
-								Pay & Send
+								Pay $25.00 & Send
 							</button>
 						</form>
 					</div>
@@ -260,8 +263,8 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Charge $15.00 (1500 cents)
-	paymentID, err := s.payment.ChargeCard(r.Context(), token, 1500)
+	// Charge $25.00 (2500 cents)
+	paymentID, err := s.payment.ChargeCard(r.Context(), token, 2500)
 	if err != nil {
 		log.Printf("Payment Error: %v", err)
 		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Payment Declined: %s</div>`, err.Error())
@@ -317,6 +320,7 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		},
 		Color: false,
 		File:  htmlBuffer.String(),
+		ExtraService: "certified", // This triggers the Tracking Number
 	}
 
 	resp, err := s.mailer.SendLetter(req)
@@ -332,29 +336,42 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. SUCCESS
+	// 3. SUCCESS HTML
+	encodedURL := url.QueryEscape(resp.URL)
+
 	successHTML := fmt.Sprintf(`
 		<div class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4">
-			<div class="bg-white p-8 rounded shadow-xl text-center max-w-md">
+			<div class="bg-white p-8 rounded shadow-xl text-center max-w-md animate-fade-in-up">
 				<div class="text-green-500 text-5xl mb-4">✓</div>
 				<h3 class="text-gray-800 font-bold text-xl mb-2">Notice Sent!</h3>
-				<p class="text-gray-600 mb-2">Lob ID: %s</p>
-				<p class="text-xs text-gray-400 mb-4">Payment ID: %s</p>
 				
-				<div class="bg-blue-50 p-3 rounded text-sm text-blue-800 mb-4">
-					<strong>Note:</strong> The PDF proof is being generated. It may take 10-15 seconds to appear.
-				</div>
+                <div class="bg-gray-100 p-4 rounded mb-4 border border-gray-200">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">USPS Tracking Number</p>
+                    <p class="text-lg font-mono font-bold text-gray-800 select-all">%s</p>
+                </div>
 
-				<a href="%s" target="_blank" class="inline-block bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
-					View PDF Proof
-				</a>
+				<p class="text-xs text-gray-400 mb-6">Payment ID: %s</p>
 				
-				<button onclick="window.location.reload()" class="block mt-4 text-gray-500 text-sm hover:underline mx-auto">
-					Send Another
-				</button>
+				<div class="space-y-3">
+                    <div hx-get="/web/check-pdf?url=%s" 
+                         hx-trigger="load" 
+                         hx-swap="outerHTML">
+                        <div class="block w-full bg-gray-100 text-gray-500 px-6 py-3 rounded text-center border border-gray-200">
+                            Checking PDF Status...
+                        </div>
+                    </div>
+					
+					<button onclick="window.location.reload()" class="block w-full text-gray-500 text-sm hover:underline">
+						Send Another
+					</button>
+				</div>
 			</div>
 		</div>
-	`, resp.ID, paymentID, resp.URL)
+	`, 
+    resp.TrackingNumber, 
+    paymentID, 
+    encodedURL, // <--- Pass the Safe URL
+    )
 
 	w.Write([]byte(successHTML))
 }
@@ -417,4 +434,41 @@ func (s *Server) renderOwnerFields(w http.ResponseWriter, name, addr, city, stat
 			</div>
 		</div>
 	`, statusBadge, nameVal, namePlaceholder, inputBorder, bgClass, addr, city, state, zip)
+}
+
+// handleCheckPDFStatus proxies a check to the Lob URL.
+// If the URL returns 200 OK, we render the Download Button.
+// If the URL returns 404 (or other), we render the "Generating..." spinner again (recursive polling).
+func (s *Server) handleCheckPDFStatus(w http.ResponseWriter, r *http.Request) {
+	pdfURL := r.URL.Query().Get("url") // This decodes the %26 back to & automatically
+	if pdfURL == "" {
+		return 
+	}
+
+	// 1. Check if the PDF exists (Using the decoded, valid URL)
+	resp, err := http.Head(pdfURL)
+	
+	// 2. LOGIC: If it's NOT ready, keep polling
+	if err != nil || resp.StatusCode != http.StatusOK {
+        
+        // FIX: Re-Encode the URL for the next HTMX request
+        encodedURL := url.QueryEscape(pdfURL)
+
+		fmt.Fprintf(w, `
+			<div hx-get="/web/check-pdf?url=%s" 
+				 hx-trigger="load delay:500ms" 
+				 hx-swap="outerHTML" 
+				 class="block w-full bg-gray-100 text-gray-500 px-6 py-3 rounded text-center border border-gray-200 cursor-wait">
+				<span class="inline-block animate-pulse">⏳ Generating PDF Proof...</span>
+			</div>
+		`, encodedURL) // <--- Use Encoded URL
+		return
+	}
+
+	// 3. SUCCESS
+	fmt.Fprintf(w, `
+		<a href="%s" target="_blank" class="block w-full bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 transition text-center shadow-md font-bold">
+			View PDF Proof
+		</a>
+	`, pdfURL) // <--- Clickable link can use raw URL (browser handles it)
 }

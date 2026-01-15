@@ -25,17 +25,19 @@ type Address struct {
 }
 
 type LetterRequest struct {
-	Description string  `json:"description"`
-	To          Address `json:"to"`
-	From        Address `json:"from"`
-	Color       bool    `json:"color"`
-	File        string  `json:"file"`
+	Description  string  `json:"description"`
+	To           Address `json:"to"`
+	From         Address `json:"from"`
+	Color        bool    `json:"color"`
+	File         string  `json:"file"`
+	ExtraService string  `json:"extra_service,omitempty"` // <--- NEW
 }
 
 type LetterResponse struct {
 	ID          string `json:"id"`
 	ExpectedDel string `json:"expected_delivery_date"`
 	URL         string `json:"url"`
+	TrackingNumber string `json:"tracking_number"`
 }
 
 // LobErrorResponse matches the JSON structure Lob sends on failure
