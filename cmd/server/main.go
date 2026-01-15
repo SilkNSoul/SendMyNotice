@@ -170,7 +170,7 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 
 				<div class="p-6 bg-white">
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Credit Card Details ($25.00)</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Credit Card Details ($29.00)</label>
                         <div id="card-container" class="h-12"></div>
                     </div>
 
@@ -199,7 +199,7 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 							<input type="hidden" id="square-token" name="square_token">
 
 							<button type="button" id="card-button" class="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700 disabled:opacity-50">
-								Pay $25.00 & Send
+								Pay $29.00 & Send
 							</button>
 						</form>
 					</div>
@@ -263,8 +263,8 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Charge $25.00 (2500 cents)
-	paymentID, err := s.payment.ChargeCard(r.Context(), token, 2500)
+	// Charge $29.00 (2900 cents)
+	paymentID, err := s.payment.ChargeCard(r.Context(), token, 2900)
 	if err != nil {
 		log.Printf("Payment Error: %v", err)
 		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Payment Declined: %s</div>`, err.Error())
