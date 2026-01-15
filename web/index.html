@@ -3,163 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SendMyNotice MVP</title>
+    <title>SendMyNotice - California Preliminary Notices</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="{{.SquareJsURL}}"></script>
     <style>
-        /* CSS TOOLTIP IMPLEMENTATION */
-        .tooltip { position: relative; display: inline-block; cursor: pointer; }
-        .tooltip .tooltip-text {
-            visibility: hidden; width: 220px; background-color: #333; color: #fff;
-            text-align: left; border-radius: 6px; padding: 8px; position: absolute;
-            z-index: 1; bottom: 125%; left: 50%; margin-left: -110px;
-            font-size: 0.75rem; line-height: 1.2; opacity: 0; transition: opacity 0.3s;
-            font-weight: normal; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        /* CSS TOOLTIP */
+        .tooltip-container { position: relative; display: inline-flex; align-items: center; }
+        .tooltip-text {
+            visibility: hidden; width: 240px; background-color: #1f2937; color: #fff;
+            text-align: left; border-radius: 6px; padding: 10px; position: absolute;
+            z-index: 50; bottom: 135%; left: 50%; transform: translateX(-50%);
+            font-size: 0.75rem; line-height: 1.4; opacity: 0; transition: opacity 0.2s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); font-weight: 400;
         }
-        .tooltip .tooltip-text::after {
+        .tooltip-text::after {
             content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
-            border-width: 5px; border-style: solid; border-color: #333 transparent transparent transparent;
+            border-width: 5px; border-style: solid; border-color: #1f2937 transparent transparent transparent;
         }
-        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+        .tooltip-container:hover .tooltip-text { visibility: visible; opacity: 1; }
+        
+        /* Smooth Fade In */
+        .animate-fade-in-up { animation: fadeInUp 0.3s ease-out; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+<body class="bg-gray-50 min-h-screen text-gray-900 font-sans">
 
-    <div class="bg-white p-8 rounded shadow-md w-full max-w-lg mb-8">
-        <h1 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Send Preliminary Notice</h1>
+    <nav class="w-full bg-white border-b border-gray-200">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2">
+                    <div class="bg-blue-600 text-white p-1.5 rounded-md font-bold text-lg">Sn</div>
+                    <span class="font-bold text-xl tracking-tight text-gray-900">SendMyNotice</span>
+                </div>
+                <div class="text-sm text-gray-500 hidden sm:block">California Civil Code § 8200 Compliant</div>
+            </div>
+        </div>
+    </nav>
 
-        <form hx-post="/web/preview" hx-target="#result" hx-swap="innerHTML" class="space-y-4">            
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
             
-            <div class="space-y-2">
-                <div class="flex items-center gap-2 mb-2">
-                    <h3 class="font-semibold text-gray-600 text-sm uppercase">Property Owner</h3>
-                    <div class="tooltip">❓
-                        <span class="tooltip-text">Legal Req: You must serve the legal owner. Use the tool below if unknown.</span>
-                    </div>
+            <div class="lg:col-span-5 space-y-8 pt-4">
+                <div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mb-4">
+                        For Contractors & Suppliers
+                    </span>
+                    <h1 class="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl mb-4">
+                        Secure your <br/> lien rights in <span class="text-blue-600">2 minutes.</span>
+                    </h1>
+                    <p class="text-lg text-gray-600 leading-relaxed">
+                        Don't let paperwork slow you down. We generate, print, and mail your California Preliminary Notice via <strong>USPS Certified Mail®</strong> instantly.
+                    </p>
                 </div>
 
-                <div id="owner-fields" class="space-y-2">
-                    <input type="text" name="to_name" placeholder="Owner Name" required 
-                           class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-base font-medium text-gray-900">Get Paid Faster</h3>
+                            <p class="mt-1 text-sm text-gray-500">Sending a notice signals you are a professional who expects payment.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-base font-medium text-gray-900">Ironclad Legal Proof</h3>
+                            <p class="mt-1 text-sm text-gray-500">Includes USPS Tracking Number and Affidavit of Service.</p>
+                        </div>
+                    </div>
                     
-                    <input type="text" name="to_address1" placeholder="Owner Address Line 1" required 
-                           class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <input type="text" name="to_city" placeholder="City" required 
-                               class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="text" name="to_state" placeholder="State" value="CA" required 
-                                   class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                            <input type="text" name="to_zip" placeholder="Zip" required 
-                                   class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-base font-medium text-gray-900">Zero Post Office Trips</h3>
+                            <p class="mt-1 text-sm text-gray-500">We handle the printing, envelopes, and postage.</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="border-t pt-4 mt-4">
-                <h3 class="font-semibold text-gray-600 text-sm uppercase mb-3">Job Details</h3>
-                
-                <div class="mb-3">
-                    <div class="flex items-center gap-2 mb-1">
-                        <label class="text-xs text-gray-500">Description of Work</label>
-                        <div class="tooltip">❓
-                            <span class="tooltip-text">Legal Req: A "general description" (e.g., "Plumbing Fixtures").</span>
-                        </div>
+            <div class="lg:col-span-7">
+                <div class="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                        <h2 class="font-bold text-gray-800">New Preliminary Notice</h2>
+                        <span class="text-xs font-mono text-gray-400">SECURE FORM</span>
                     </div>
-                    <input type="text" name="job_description" placeholder="e.g. Lumber, Framing, Labor" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div class="mb-3">
-                    <div class="flex items-center gap-2 mb-1">
-                        <label class="text-xs text-gray-500">Estimated Total Price ($)</label>
-                        <div class="tooltip">❓
-                            <span class="tooltip-text">Legal Req: A "Good Faith Estimate".</span>
-                        </div>
-                    </div>
-                    <input type="text" name="estimated_price" id="price-input" placeholder="e.g. 5,000.00" required class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div class="mb-3">
-                    <div class="flex items-center gap-2 mb-1">
-                        <label class="text-xs text-gray-500">Your Role</label>
-                    </div>
-                    <select name="sender_role" class="w-full border p-2 rounded bg-white outline-none">
-                        <option value="Material Supplier">Material Supplier</option>
-                        <option value="Subcontractor">Subcontractor</option>
-                        <option value="Direct Contractor">Direct Contractor</option>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label class="text-xs text-gray-500 mb-1">Construction Lender (Optional)</label>
-                    <input type="text" name="lender_name" placeholder="Bank Name (if known)" class="w-full border p-2 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-            </div>
-
-            <input type="hidden" name="from_name" value="SendMyNotice Inc">
-            <input type="hidden" name="from_address1" value="55 Devine St">
-            <input type="hidden" name="from_city" value="San Jose">
-            <input type="hidden" name="from_state" value="CA">
-            <input type="hidden" name="from_zip" value="95110">
-
-            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 transition duration-150">
-                Preview Notice
-            </button>
-        </form>
-
-        <div id="result" class="mt-6"></div>
-    </div>
-
-    <div class="w-full max-w-lg hidden">
-        <details class="bg-gray-200 rounded shadow-inner">
-            <summary class="p-4 cursor-pointer font-bold text-gray-600 select-none flex justify-between">
-                <span>Don't know the owner?</span>
-                <span class="text-indigo-600">Use Lookup Tool ↓</span>
-            </summary>
-            
-            <div class="p-4 border-t border-gray-300">
-                <p class="text-xs text-gray-600 mb-4">
-                    Enter the Job Site address below to search public tax records.
-                </p>
-
-                <form hx-post="/web/lookup-owner" 
-                    hx-target="#owner-fields" 
-                    hx-swap="outerHTML" 
-                    class="space-y-3">
                     
-                    <input type="text" name="to_address1" placeholder="Job Site Address" required 
-                        class="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500">
-                    
-                    <div class="grid grid-cols-3 gap-2">
-                        <input type="text" name="to_city" placeholder="City" required class="w-full border p-2 rounded">
-                        <input type="text" name="to_state" value="CA" class="w-full border p-2 rounded">
-                        <input type="text" name="to_zip" placeholder="Zip" required class="w-full border p-2 rounded">
+                    <div class="p-6 sm:p-8">
+                        <form hx-post="/web/preview" hx-target="#result" hx-swap="innerHTML" class="space-y-6">
+                            
+                            <div>
+                                <div class="flex items-center gap-2 mb-3">
+                                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Recipient (Property Owner)</h3>
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-gray-400 hover:text-blue-500 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        <span class="tooltip-text">Who pays the taxes? You must serve the legal owner.</span>
+                                    </div>
+                                </div>
+                                <div class="space-y-3" id="owner-fields">
+                                    <input type="text" name="to_name" placeholder="Full Legal Name" required 
+                                           class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition">
+                                    
+                                    <input type="text" name="to_address1" placeholder="Mailing Address" required 
+                                           class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition">
+                                    
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <input type="text" name="to_city" placeholder="City" required 
+                                               class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <input type="text" name="to_state" value="CA" readonly 
+                                                   class="w-full bg-gray-100 border border-gray-200 text-gray-500 text-sm rounded-lg block p-2.5 cursor-not-allowed">
+                                            <input type="text" name="to_zip" placeholder="Zip" required 
+                                                   class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t border-gray-100">
+                                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Job Details</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Description of Work</label>
+                                        <input type="text" name="job_description" placeholder="e.g. Rough Carpentry & Materials" required 
+                                               class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                                    </div>
+
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <div class="flex items-center gap-1 mb-1">
+                                                <label class="block text-sm font-medium text-gray-700">Contract Value ($)</label>
+                                            </div>
+                                            <input type="text" name="estimated_price" id="price-input" placeholder="5,000.00" required 
+                                                   class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Your Role</label>
+                                            <select name="sender_role" class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                                                <option value="Subcontractor">Subcontractor</option>
+                                                <option value="Material Supplier">Material Supplier</option>
+                                                <option value="Direct Contractor">Direct Contractor</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Construction Lender (Optional)</label>
+                                        <input type="text" name="lender_name" placeholder="Bank Name (if applicable)" 
+                                               class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <input type="hidden" name="from_name" value="SendMyNotice Inc">
+                            <input type="hidden" name="from_address1" value="55 Devine St">
+                            <input type="hidden" name="from_city" value="San Jose">
+                            <input type="hidden" name="from_state" value="CA">
+                            <input type="hidden" name="from_zip" value="95110">
+
+                            <button type="submit" class="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-bold rounded-lg text-sm px-5 py-3 text-center transition shadow-md">
+                                Preview Notice
+                            </button>
+                        </form>
                     </div>
 
-                    <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-2 rounded hover:bg-indigo-700">
-                        Search & Autofill Form
-                    </button>
-                </form>
+                    <div class="bg-gray-50 border-t border-gray-100 p-4 hidden">
+                         </div>
+                </div>
+                <div id="result"></div>
             </div>
-        </details>
-    </div>
+        </div>
+    </main>
+
+    <footer class="bg-white border-t border-gray-200 mt-12 py-8">
+        <div class="max-w-6xl mx-auto px-4 text-center text-gray-400 text-sm">
+            <p>&copy; 2026 SendMyNotice. All rights reserved.</p>
+        </div>
+    </footer>
 
     <script>
         const priceInput = document.getElementById('price-input');
-        priceInput.addEventListener('input', function(e) {
-            let value = this.value.replace(/[^\d.]/g, '');
-            const parts = value.split('.');
-            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-            if (parts.length > 2) {
-                value = parts[0] + "." + parts.slice(1).join('');
-            } else {
-                value = parts.join('.');
-            }
-            this.value = value;
-        });
+        if (priceInput) {
+            priceInput.addEventListener('input', function(e) {
+                let value = this.value.replace(/[^\d.]/g, '');
+                const parts = value.split('.');
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                this.value = parts.length > 2 ? parts[0] + "." + parts.slice(1).join('') : parts.join('.');
+            });
+        }
     </script>
 </body>
 </html>

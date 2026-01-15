@@ -338,42 +338,59 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 
 	// 3. SUCCESS HTML
 	encodedURL := url.QueryEscape(resp.URL)
+	trackingLink := fmt.Sprintf("https://tools.usps.com/go/TrackConfirmAction?tLabels=%s", resp.TrackingNumber)
 
 	successHTML := fmt.Sprintf(`
-		<div class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4">
-			<div class="bg-white p-8 rounded shadow-xl text-center max-w-md animate-fade-in-up">
-				<div class="text-green-500 text-5xl mb-4">✓</div>
-				<h3 class="text-gray-800 font-bold text-xl mb-2">Notice Sent!</h3>
-				
-                <div class="bg-gray-100 p-4 rounded mb-4 border border-gray-200">
-                    <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">USPS Tracking Number</p>
-                    <p class="text-lg font-mono font-bold text-gray-800 select-all">%s</p>
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full animate-fade-in-up overflow-hidden">
+                <div class="bg-green-50 p-6 text-center border-b border-green-100">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-3">
+                        <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900">Notice Sent Successfully!</h3>
+                    <p class="text-sm text-gray-500 mt-1">Ref: %s</p>
                 </div>
 
-				<p class="text-xs text-gray-400 mb-6">Payment ID: %s</p>
-				
-				<div class="space-y-3">
-                    <div hx-get="/web/check-pdf?url=%s" 
-                         hx-trigger="load" 
-                         hx-swap="outerHTML">
-                        <div class="block w-full bg-gray-100 text-gray-500 px-6 py-3 rounded text-center border border-gray-200">
-                            Checking PDF Status...
+                <div class="p-6 space-y-5">
+                    <div class="bg-white border rounded-lg p-3 shadow-sm">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">USPS Certified Mail®</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-lg font-mono font-bold text-gray-800 select-all">%s</span>
+                            <a href="%s" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-semibold flex items-center gap-1">
+                                Track <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            </a>
                         </div>
                     </div>
-					
-					<button onclick="window.location.reload()" class="block w-full text-gray-500 text-sm hover:underline">
-						Send Another
-					</button>
-				</div>
-			</div>
-		</div>
-	`, 
-    resp.TrackingNumber, 
-    paymentID, 
-    encodedURL, // <--- Pass the Safe URL
+
+                    <div hx-get="/web/check-pdf?url=%s" hx-trigger="load" hx-swap="outerHTML">
+                        <div class="block w-full bg-gray-50 text-gray-400 px-4 py-3 rounded text-center border border-dashed border-gray-300 text-sm">
+                            <span class="inline-block animate-pulse">⏳ Generating PDF Proof...</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t">
+                        <p class="text-sm font-medium text-gray-700 mb-2 text-center">Know another contractor?</p>
+                        <button onclick="navigator.clipboard.writeText('https://sendmynotice.com'); this.innerText = 'Link Copied!'" 
+                                class="w-full flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded border border-indigo-100 hover:bg-indigo-100 transition text-sm font-medium">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                            Copy Link to Share
+                        </button>
+                    </div>
+
+                    <button onclick="window.location.reload()" class="block w-full text-center text-gray-400 text-xs hover:text-gray-600 hover:underline">
+                        Start New Notice
+                    </button>
+                </div>
+            </div>
+        </div>
+    `, 
+    paymentID,           // Ref
+    resp.TrackingNumber, // Tracking Display
+    trackingLink,        // Tracking Href
+    encodedURL,          // PDF Poller
     )
 
-	w.Write([]byte(successHTML))
+    w.Write([]byte(successHTML))
 }
 
 // handleLookupOwner: Still here if you ever un-hide the tool, but now purely for UI feedback
