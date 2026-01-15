@@ -4,34 +4,32 @@
     <meta charset="UTF-8">
     <title>Preliminary Notice</title>
     <style>
-        /* HIGH VALUE LEGAL STYLING */
+        @page {
+            margin: 0.5in; /* Tighter margins for more space */
+            size: Letter;
+        }
+        
         body {
-            font-family: 'Times New Roman', Times, serif; /* Serifs look like law */
-            font-size: 11pt;
-            line-height: 1.5;
-            color: #000; /* Pure black for print */
             margin: 0;
+            -webkit-print-color-adjust: exact;
+            font-family: 'Times New Roman', serif;
+            font-size: 11pt; /* Slightly larger for readability */
+            line-height: 1.3;
+            color: #000;
         }
-
-        /* The "Official" Header */
-        .sender-brand {
-            font-family: 'Helvetica', sans-serif; /* Contrast font for the brand */
-            font-size: 16pt;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* The "Legal Box" - Make it look like a government form */
+        .cover-container { page-break-after: always; }
+        
+        /* make the box look like a stamp */
         .notice-box {
-            border: 3px solid #000; /* Thicker border */
-            padding: 20px;
-            margin-top: 20px;
-            background-color: #fff; /* Remove grey background for clean print */
-            font-family: 'Arial Narrow', Arial, sans-serif; /* Condensed font for statutory text */
-            font-size: 9pt; 
-            font-weight: bold;
+            border: 4px solid #000; /* Heavier border */
+            padding: 25px;
+            margin: 20px 0;
+            background-color: #fff;
+            font-family: 'Arial', sans-serif; /* Distinct from body text */
+            font-size: 10pt;
+            line-height: 1.4;
             text-align: justify;
+            box-shadow: 5px 5px 0px #eee; /* Subtle depth for screen view */
         }
 
         .field-label {

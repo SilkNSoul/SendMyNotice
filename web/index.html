@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="index, follow">
-    <link rel="icon" href="https://fav.farm/🛡️"> 
-    <title>SendMyNotice | CA Preliminary Notice Automation</title>
+    <link rel="icon" href="https://fav.farm/🇺🇸">
+    <title>SendMyNotice - California Preliminary Notices</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="{{.SquareJsURL}}"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        /* CSS TOOLTIP */
         .tooltip-container { position: relative; display: inline-flex; align-items: center; }
         .tooltip-text {
             visibility: hidden; width: 240px; background-color: #1f2937; color: #fff;
@@ -25,30 +24,30 @@
             border-width: 5px; border-style: solid; border-color: #1f2937 transparent transparent transparent;
         }
         .tooltip-container:hover .tooltip-text { visibility: visible; opacity: 1; }
+        
         .animate-fade-in-up { animation: fadeInUp 0.3s ease-out; }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-900 flex flex-col">
+<body class="bg-gray-50 min-h-screen text-gray-900 font-sans flex flex-col">
 
-    <div class="bg-blue-900 text-blue-100 text-xs py-2 text-center font-medium">
-        <span class="inline-block w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
-        System Online: Processing CA Civil Code § 8200 Notices for {{.CurrentDate}}
-    </div>
-
-    <nav class="w-full bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+    <nav class="w-full bg-white border-b border-gray-200 sticky top-0 z-40">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
                 <div class="flex items-center gap-2">
-                    <div class="bg-blue-600 text-white p-1.5 rounded-md shadow-sm">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                    </div>
-                    <span class="font-extrabold text-xl tracking-tight text-slate-900">SendMyNotice</span>
+                    <span class="font-bold text-xl tracking-tight text-gray-900">SendMyNotice</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-blue-600">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+                     </svg>
                 </div>
                 <div class="flex items-center gap-4">
-                    <div class="hidden md:flex items-center gap-2 text-xs text-gray-500">
-                        <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
-                        <span>Verified 2026 Compliant</span>
+                    <a href="#facts" class="text-sm font-medium text-gray-600 hover:text-gray-900 hidden sm:block">Common Questions</a>
+                    <div class="flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded border border-green-200 font-medium">
+                        <svg class="w-3 h-3 fill-current" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                        <span>CA Civil Code § 8200 Compliant</span>
                     </div>
                 </div>
             </div>
@@ -60,125 +59,177 @@
             
             <div class="lg:col-span-5 space-y-8 pt-4">
                 <div>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 mb-5 uppercase tracking-wide border border-blue-200">
-                        California Contractors & Suppliers
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 mb-4 uppercase tracking-wide">
+                        For Contractors & Suppliers
                     </span>
-                    <h1 class="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl mb-6 leading-tight">
-                        Don't let them <br/><span class="text-blue-600">sit on your invoice.</span>
+                    <h1 class="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl mb-4 leading-tight">
+                        Secure your <br/> lien rights in <span class="text-blue-600">2 minutes.</span>
                     </h1>
-                    <p class="text-lg text-slate-600 leading-relaxed font-light">
-                        The law says you have 20 days. Generate and mail your <strong>Preliminary Notice</strong> via Certified Mail® in 2 minutes. We handle the printing, postage, and tracking.
+                    <p class="text-lg text-gray-600 leading-relaxed">
+                        The <strong>#1 Easiest Way</strong> for California Contractors to file Civil Code § 8200 Notices. Trusted by Stripe & USPS for secure delivery.
                     </p>
                 </div>
 
-                <div class="grid grid-cols-3 gap-4 py-4 border-y border-slate-100">
-                    <div class="text-center">
-                        <div class="font-bold text-2xl text-slate-800">20k+</div>
-                        <div class="text-xs text-slate-500">Notices Sent</div>
+                <div class="space-y-6">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 mt-1">
+                            <div class="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                <svg class="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-bold text-gray-900">USPS Certified Tracking</h3>
+                            <p class="mt-1 text-sm text-gray-600">
+                                You get a legal tracking number instantly. This is your proof of service, required by California law to protect your right to payment.
+                            </p>
+                        </div>
                     </div>
-                    <div class="text-center border-l border-slate-100">
-                        <div class="font-bold text-2xl text-slate-800">24h</div>
-                        <div class="text-xs text-slate-500">Turnaround</div>
-                    </div>
-                    <div class="text-center border-l border-slate-100">
-                        <div class="font-bold text-2xl text-slate-800">100%</div>
-                        <div class="text-xs text-slate-500">Trackable</div>
+
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 mt-1">
+                            <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                <svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-bold text-gray-900">Next-Day Handover</h3>
+                            <p class="mt-1 text-sm text-gray-600">
+                                Notices approved before 10 AM PST are printed and handed to USPS the same day. Includes instant PDF proof for your records.
+                            </p>
+                        </div>
                     </div>
                 </div>
-
-                <div class="space-y-4 text-sm text-slate-600">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        <span>Includes <strong>USPS Certified Mail®</strong> Tracking Number</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        <span>Instant PDF Proof for your records</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        <span>Bank-level 256-bit Encryption via Stripe/Square</span>
+                
+                <div class="pt-6 border-t border-gray-200">
+                    <div class="flex gap-6 hover:grayscale-0 transition">
+                         <span class="text-sm font-bold text-gray-600 flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                            Stripe Secure
+                         </span>
+                         <span class="text-sm font-bold text-gray-600 flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zm-2-8l-6 6-4-4-1.4 1.4L12 16.8 19.4 11.4 18 10z"/></svg>
+                            USPS Integrated
+                         </span>
                     </div>
                 </div>
             </div>
 
             <div class="lg:col-span-7">
-                <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-                    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                        <h2 class="font-bold text-slate-800">Create Preliminary Notice</h2>
-                        <div class="flex items-center gap-2">
-                             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                             <span class="text-xs font-mono text-gray-500 uppercase">SSL Encrypted</span>
-                        </div>
+                <div class="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden transform transition hover:shadow-2xl">
+                    <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                        <h2 class="font-bold text-gray-800">New Preliminary Notice</h2>
+                        <span class="text-xs font-mono text-gray-500 bg-white border border-gray-200 px-2 py-1 rounded">SECURE FORM</span>
                     </div>
                     
                     <div class="p-6 sm:p-8">
                         <form hx-post="/web/preview" hx-target="#result" hx-swap="innerHTML" class="space-y-6">
                             <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-1">Your Email</label>
-                                <input type="email" name="user_email" placeholder="Where should we send the receipt?" required 
-                                    class="w-full bg-white border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3 shadow-sm">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Your Email (for receipt & tracking)</label>
+                                <input type="email" name="user_email" placeholder="you@company.com" required 
+                                    class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                <p class="text-xs text-gray-500 mt-1">We'll send your tracking number here.</p>
                             </div>
 
-                            <div class="p-4 bg-slate-50 rounded-lg border border-slate-100">
-                                <h3 class="text-xs font-bold text-slate-500 uppercase mb-3">1. Your Info (Claimant)</h3>
-                                <div class="space-y-3">
-                                    <input type="text" name="from_name" placeholder="Your Company Name" required class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm">
-                                    <input type="text" name="from_address1" placeholder="Address" required class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm">
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <input type="text" name="from_city" placeholder="City" required class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm">
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <input type="text" name="from_state" value="CA" readonly class="w-full bg-slate-100 border-slate-300 rounded-md shadow-sm p-3 text-sm text-gray-500">
-                                            <input type="text" name="from_zip" placeholder="Zip" required class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm">
+                            <div>
+                                <div class="mb-8 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                                    <h3 class="text-xs font-bold text-blue-800 uppercase tracking-wider mb-3">1. Your Information (The Claimant)</h3>
+                                    <div class="space-y-3">
+                                        <input type="text" name="from_name" placeholder="Your Company Name (e.g. Joe's Plumbing)" required 
+                                            class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                        
+                                        <input type="text" name="from_address1" placeholder="Your Mailing Address" required 
+                                            class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                        
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <input type="text" name="from_city" placeholder="City" required 
+                                                class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <input type="text" name="from_state" value="CA" readonly 
+                                                    class="w-full bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg block p-3 cursor-not-allowed">
+                                                <input type="text" name="from_zip" placeholder="Zip" required 
+                                                    class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                             </div>
-
-                             <div class="p-4 bg-slate-50 rounded-lg border border-slate-100">
-                                <div class="flex justify-between items-center mb-3">
-                                    <h3 class="text-xs font-bold text-slate-500 uppercase">2. Property Owner</h3>
-                                    <span class="text-[10px] text-blue-600 cursor-help font-semibold" title="Check tax records">Who pays the taxes?</span>
+                                <div class="flex items-center gap-2 mb-3">
+                                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Recipient (Property Owner)</h3>
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-gray-400 hover:text-blue-500 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        <span class="tooltip-text">Who pays the taxes? You must serve the legal owner.</span>
+                                    </div>
                                 </div>
-                                <div class="space-y-3">
-                                    <input type="text" name="to_name" placeholder="Owner Full Name" required class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm">
-                                    <input type="text" name="to_address1" placeholder="Owner Mailing Address" required class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm">
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <input type="text" name="to_city" placeholder="City" required class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm">
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <input type="text" name="to_state" value="CA" readonly class="w-full bg-slate-100 border-slate-300 rounded-md shadow-sm p-3 text-sm text-gray-500">
-                                            <input type="text" name="to_zip" placeholder="Zip" required class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm">
+                                <div class="space-y-3" id="owner-fields">
+                                    <input type="text" name="to_name" placeholder="Full Legal Name" required 
+                                           class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3 transition">
+                                    
+                                    <input type="text" name="to_address1" placeholder="Mailing Address" required 
+                                           class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3 transition">
+                                    
+                                    <div class="pt-4 border-t border-gray-100">
+                                        <div class="flex items-center mb-2">
+                                            <input id="same_address" type="checkbox" checked class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                onchange="document.getElementById('job-site-container').classList.toggle('hidden', this.checked)">
+                                            <label for="same_address" class="ml-2 text-sm text-gray-700">Job Site is same as Owner Address</label>
+                                        </div>
+                                        
+                                        <div id="job-site-container" class="hidden space-y-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                            <label class="block text-xs font-bold text-gray-500 uppercase">Job Site Address</label>
+                                            <input type="text" name="job_site_address" placeholder="Where is the work happening?" 
+                                                class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
                                         </div>
                                     </div>
-                                    <div class="flex items-center mt-2">
-                                        <input id="same_address" type="checkbox" checked class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                                            onchange="document.getElementById('job-site-container').classList.toggle('hidden', this.checked)">
-                                        <label for="same_address" class="ml-2 text-sm text-slate-600">Job Site is same as Owner Address</label>
-                                    </div>
-                                    <div id="job-site-container" class="hidden mt-3">
-                                        <input type="text" name="job_site_address" placeholder="Job Site Address" class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm">
-                                    </div>
-                                </div>
-                             </div>
-
-                             <div class="p-4 bg-slate-50 rounded-lg border border-slate-100">
-                                <h3 class="text-xs font-bold text-slate-500 uppercase mb-3">3. Job Details</h3>
-                                <div class="space-y-3">
-                                    <input type="text" name="job_description" placeholder="Description (e.g. Electrical Work)" required class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm">
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <input type="text" name="estimated_price" id="price-input" placeholder="Value ($)" required class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm">
-                                        <select name="sender_role" class="w-full border-slate-300 rounded-md shadow-sm p-3 text-sm bg-white">
-                                            <option value="Subcontractor">Subcontractor</option>
-                                            <option value="Direct Contractor">Direct Contractor</option>
-                                            <option value="Material Supplier">Material Supplier</option>
-                                        </select>
+                                    
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <input type="text" name="to_city" placeholder="City" required 
+                                               class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <input type="text" name="to_state" value="CA" readonly 
+                                                   class="w-full bg-gray-100 border border-gray-200 text-gray-500 text-sm rounded-lg block p-3 cursor-not-allowed">
+                                            <input type="text" name="to_zip" placeholder="Zip" required 
+                                                   class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                        </div>
                                     </div>
                                 </div>
-                             </div>
+                            </div>
 
-                            <button type="submit" class="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-bold rounded-lg text-lg px-5 py-4 text-center transition shadow-lg flex justify-center items-center gap-2">
-                                <span>Preview Notice</span>
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            <div class="pt-4 border-t border-gray-100">
+                                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Job Details</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Description of Work</label>
+                                        <input type="text" name="job_description" placeholder="e.g. Rough Carpentry & Materials" required 
+                                               class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                    </div>
+
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <div class="flex items-center gap-1 mb-1">
+                                                <label class="block text-sm font-medium text-gray-700">Contract Value ($)</label>
+                                            </div>
+                                            <input type="text" name="estimated_price" id="price-input" placeholder="5,000.00" required 
+                                                   class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Your Role</label>
+                                            <select name="sender_role" class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                                <option value="Subcontractor">Subcontractor</option>
+                                                <option value="Material Supplier">Material Supplier</option>
+                                                <option value="Direct Contractor">Direct Contractor</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Construction Lender (Optional)</label>
+                                        <input type="text" name="lender_name" placeholder="Bank Name (if applicable)" 
+                                               class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-bold rounded-lg text-lg px-5 py-4 text-center transition shadow-md">
+                                Preview Notice
                             </button>
                         </form>
                     </div>
@@ -186,26 +237,153 @@
                 <div id="result"></div>
             </div>
         </div>
+
+        <div id="facts" class="mt-24 bg-white border-y border-gray-200 py-16">
+            <div class="max-w-4xl mx-auto px-4">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-extrabold text-gray-900">Why send a Preliminary Notice?</h2>
+                    <p class="mt-2 text-lg text-gray-600">Common misconceptions cleared up.</p>
+                </div>
+                
+                <div class="grid gap-8 md:grid-cols-3">
+                    <div class="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                        <div class="text-blue-600 font-bold text-xl mb-2">1. It is NOT a Lien</div>
+                        <p class="text-gray-600 text-sm leading-relaxed">
+                            Sending this notice does <strong>not</strong> mean you are suing the owner or filing a lien. It is a purely informational document that protects your right to get paid later <em>if</em> a problem arises.
+                        </p>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                        <div class="text-blue-600 font-bold text-xl mb-2">2. It's Standard Procedure</div>
+                        <p class="text-gray-600 text-sm leading-relaxed">
+                            California law (Civil Code § 8200) requires subcontractors and suppliers to send this notice for jobs over $500. Professional contractors send these on every single job as a matter of routine compliance.
+                        </p>
+                    </div>
+
+                    <div class="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                        <div class="text-blue-600 font-bold text-xl mb-2">3. It Protects the Owner</div>
+                        <p class="text-gray-600 text-sm leading-relaxed">
+                            This notice helps owners track exactly who is working on their property. It prevents "surprise" liens from unknown subcontractors and ensures everyone on the job gets paid fairly.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-4xl mx-auto py-16 px-4">
+            <h2 class="text-2xl font-bold text-gray-900 mb-8">Frequently Asked Questions</h2>
+            <div class="space-y-6">
+                <div class="border-b border-gray-200 pb-6">
+                    <h3 class="font-bold text-lg text-gray-900 mb-2">Is the tracking number enough proof?</h3>
+                    <p class="text-gray-600 text-sm">
+                        Yes. According to California Civil Code § 8118, proof of notice can be established by a "return receipt or a photocopy of the record of delivery and receipt maintained by the post office." Our system provides the USPS Certified Mail tracking number which serves as this record.
+                    </p>
+                </div>
+                <div class="border-b border-gray-200 pb-6">
+                    <h3 class="font-bold text-lg text-gray-900 mb-2">Can I get a refund?</h3>
+                    <p class="text-gray-600 text-sm">
+                        If our system fails to generate or mail your letter due to a technical error, we issue a 100% automatic refund. However, once the letter is handed to USPS (indicated by a tracking number), we cannot offer refunds for typos or incorrect addresses, as the postage has already been paid.
+                    </p>
+                </div>
+                <div>
+                    <h3 class="font-bold text-lg text-gray-900 mb-2">What if I don't know the exact legal owner?</h3>
+                    <p class="text-gray-600 text-sm">
+                        You must make a "good faith" effort to find them. Check your contract, check the building permit at the job site, or check with the County Assessor. Serving the wrong person can invalidate your notice.
+                    </p>
+                </div>
+            </div>
+        </div>
     </main>
 
-    <footer class="bg-white border-t border-slate-200 py-12 mt-auto">
+<footer class="bg-white border-t border-gray-200 py-12">
         <div class="max-w-6xl mx-auto px-4 text-center">
-            <div class="flex justify-center items-center gap-2 mb-4 text-slate-900 font-bold">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                <span>SendMyNotice</span>
-            </div>
-            <p class="text-slate-400 text-sm mb-6">&copy; 2026. Built in California.</p>
-            <div class="flex justify-center gap-6 text-sm text-slate-500 items-center">
-                <a href="mailto:support@sendmynotice.com" class="hover:text-slate-900 transition">Support</a>
-                <span class="text-slate-300">•</span>
-                <button onclick="document.getElementById('tos-modal').classList.remove('hidden')" class="hover:text-slate-900 transition">Terms</button>
-                <span class="text-slate-300">•</span>
-                <span class="flex items-center gap-1 text-slate-400">
-                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
-                    256-bit SSL
-                </span>
+            <p class="text-gray-500 text-sm mb-4">&copy; 2026 SendMyNotice. All rights reserved.</p>
+            <div class="flex justify-center gap-6 text-sm text-gray-400 items-center">
+                <a href="mailto:support@sendmynotice.com" class="hover:text-gray-900 transition">Contact Support</a>
+                <span>•</span>
+                <button onclick="document.getElementById('tos-modal').classList.remove('hidden')" class="hover:text-gray-900 transition underline">
+                    Terms of Service
+                </button>
+                <span>•</span>
+                <span class="cursor-help" title="We use industry standard encryption via Stripe and Lob.">Secure & Encrypted</span>
             </div>
         </div>
     </footer>
-    </body>
+
+    <div id="tos-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="document.getElementById('tos-modal').classList.add('hidden')"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4" id="modal-title">
+                                Terms of Service
+                            </h3>
+                            <div class="mt-2 text-sm text-gray-600 h-96 overflow-y-auto border-t border-b border-gray-100 py-4 space-y-4">
+                                
+                                <section>
+                                    <h4 class="font-bold text-gray-900">1. WE ARE NOT A LAW FIRM</h4>
+                                    <p>SendMyNotice is a document automation and mailing service. We are not lawyers. The materials generated by this website are for informational purposes only and do not constitute legal advice. We do not review your answers for legal sufficiency. If you need legal advice regarding lien rights, consult an attorney.</p>
+                                </section>
+
+                                <section>
+                                    <h4 class="font-bold text-gray-900">2. YOUR RESPONSIBILITY FOR ACCURACY</h4>
+                                    <p>You are responsible for the data you enter. If you misspell the property owner's name, input the wrong address, or underestimate the job value, the Notice we generate may be legally invalid. We print exactly what you type. We are not liable for errors in the information you provide.</p>
+                                </section>
+
+                                <section>
+                                    <h4 class="font-bold text-gray-900">3. MAILING AND DELIVERY</h4>
+                                    <p>If you purchase our mailing service, we will print and deposit your document with the United States Postal Service (USPS) via Certified Mail®.</p>
+                                    <ul class="list-disc ml-5 mt-1">
+                                        <li><strong>Hand-off:</strong> Our responsibility ends when we hand the envelope to the USPS.</li>
+                                        <li><strong>Delays:</strong> We are not responsible for USPS delays, lost mail, or failure to deliver.</li>
+                                        <li><strong>Timeliness:</strong> You are responsible for ensuring you submit your request early enough to meet the statutory 20-day deadline.</li>
+                                    </ul>
+                                </section>
+
+                                <section>
+                                    <h4 class="font-bold text-gray-900">4. NO REFUNDS ON PROCESSED MAIL</h4>
+                                    <p>Once a document has been sent to our print queue, we cannot cancel or refund the order. You are paying for the custom generation and postage, which cannot be recovered.</p>
+                                </section>
+
+                                <section>
+                                    <h4 class="font-bold text-gray-900">5. LIMITATION OF LIABILITY</h4>
+                                    <p>To the fullest extent permitted by law, SendMyNotice's liability for any claim arising out of your use of this service is limited to the amount you paid for the specific transaction. We are not liable for consequential damages, lost lien rights, or lost profits.</p>
+                                </section>
+
+                                <section>
+                                    <h4 class="font-bold text-gray-900">6. ACCEPTANCE</h4>
+                                    <p>By using this site or clicking "Generate PDF," you agree to these terms.</p>
+                                </section>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="document.getElementById('tos-modal').classList.add('hidden')" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        I Understand
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const priceInput = document.getElementById('price-input');
+        if (priceInput) {
+            priceInput.addEventListener('input', function(e) {
+                let value = this.value.replace(/[^\d.]/g, '');
+                const parts = value.split('.');
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                this.value = parts.length > 2 ? parts[0] + "." + parts.slice(1).join('') : parts.join('.');
+            });
+        }
+    </script>
+</body>
 </html>

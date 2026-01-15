@@ -355,14 +355,6 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 
 	userEmail := r.FormValue("user_email")
 
-	// Charge $29.00 (2900 cents)
-	paymentID, err := s.payment.ChargeCard(r.Context(), token, 2900, userEmail)
-	if err != nil {
-		log.Printf("Payment Error: %v", err)
-		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Payment Declined: %s</div>`, err.Error())
-		return
-	}
-
 	finalJobSite := r.FormValue("job_site_address")
 	if finalJobSite == "" {
 		// If they checked "Same as Owner", this field is empty, so we construct it from Owner Addr
@@ -398,6 +390,14 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Charge $29.00 (2900 cents)
+	paymentID, err := s.payment.ChargeCard(r.Context(), token, 2900, userEmail)
+	if err != nil {
+		log.Printf("Payment Error: %v", err)
+		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Payment Declined: %s</div>`, err.Error())
+		return
+	}
+
 	// Create Request to Lob
 	req := mailer.LetterRequest{
 		Description: fmt.Sprintf("Notice - Ref: %s", paymentID), // Track Payment ID in Lob
@@ -426,16 +426,16 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Mailer error: %v", err)
 
-		// --- NEW: REFUND LOGIC ---
 		refundErr := s.payment.RefundPayment(r.Context(), paymentID)
 		refundMsg := "Your card was refunded automatically."
 		if refundErr != nil {
 			// In a real app, pageer duty triggers here.
 			// For MVP, we log loud and tell user to contact support.
 			log.Printf("CRITICAL: FAILED TO REFUND %s: %v", paymentID, refundErr)
+			go s.sendLeadToDiscord(userEmail, "SYSTEM_CRITICAL_FAILURE", fmt.Sprintf("CHARGE WITHOUT SERVICE! REFUND FAILED. PaymentID: %s", paymentID))
+
 			refundMsg = fmt.Sprintf("Refund failed. Please contact support with Ref: %s", paymentID)
 		}
-		// -------------------------
 
 		var userErr *apierrors.UserError
 		if errors.As(err, &userErr) {
@@ -448,7 +448,6 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. SUCCESS HTML
-	s.recordSuccess(paymentID, resp.TrackingNumber, userEmail, finalJobSite)
 	go s.sendLeadToDiscord(userEmail, r.FormValue("from_name"), "PAID_CUSTOMER_$$$")
 	
 	encodedURL := url.QueryEscape(resp.URL)
@@ -586,17 +585,21 @@ func (s *Server) handleCheckPDFStatus(w http.ResponseWriter, r *http.Request) {
 	// 2. LOGIC: If it's NOT ready, keep polling
 	if err != nil || resp.StatusCode != http.StatusOK {
 
-		// FIX: Re-Encode the URL for the next HTMX request
 		encodedURL := url.QueryEscape(pdfURL)
 
 		fmt.Fprintf(w, `
 			<div hx-get="/web/check-pdf?url=%s" 
-				 hx-trigger="load delay:500ms" 
-				 hx-swap="outerHTML" 
-				 class="block w-full bg-gray-100 text-gray-500 px-6 py-3 rounded text-center border border-gray-200 cursor-wait">
-				<span class="inline-block animate-pulse">⏳ Generating PDF Proof...</span>
+				hx-trigger="load delay:1s" 
+				hx-swap="outerHTML" 
+				class="flex flex-col items-center justify-center w-full bg-gray-50 text-blue-600 px-6 py-6 rounded border border-gray-200">
+				<svg class="animate-spin h-8 w-8 text-blue-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+				</svg>
+				<span class="text-sm font-semibold text-gray-600">Finalizing Certified Mail Document...</span>
+				<span class="text-xs text-gray-400 mt-1">This ensures legal compliance.</span>
 			</div>
-		`, encodedURL) // <--- Use Encoded URL
+		`, encodedURL)
 		return
 	}
 
@@ -605,7 +608,7 @@ func (s *Server) handleCheckPDFStatus(w http.ResponseWriter, r *http.Request) {
 		<a href="%s" target="_blank" class="block w-full bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 transition text-center shadow-md font-bold">
 			View PDF Proof
 		</a>
-	`, pdfURL) // <--- Clickable link can use raw URL (browser handles it)
+	`, pdfURL) 
 }
 
 
@@ -661,30 +664,4 @@ func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {
 	// Return the Javascript to trigger the print dialog
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `<script>window.print();</script>`)
-}
-
-func (s *Server) recordSuccess(paymentID, tracking, email, jobAddr string) {
-    record := OrderRecord{
-        Time:           time.Now().Format(time.RFC3339),
-        PaymentID:      paymentID,
-        TrackingNumber: tracking,
-        Amount:         "$29.00",
-        UserEmail:      email,
-        JobAddress:     jobAddr,
-    }
-
-    fileMutex.Lock() // Ensure thread safety
-    defer fileMutex.Unlock()
-
-    f, err := os.OpenFile("orders.jsonl", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-    if err != nil {
-        log.Printf("CRITICAL: COULD NOT WRITE TO ORDERS FILE: %v", err)
-        return
-    }
-    defer f.Close()
-
-    jsonBytes, _ := json.Marshal(record)
-    if _, err := f.Write(append(jsonBytes, '\n')); err != nil {
-        log.Printf("CRITICAL: WRITE FAILED: %v", err)
-    }
 }
