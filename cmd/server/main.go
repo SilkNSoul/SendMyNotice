@@ -120,8 +120,19 @@ func main() {
 
 	r.Post("/web/capture-lead", srv.handleCaptureLead)
 
-	log.Println("🚀 Server starting on :8080")
-	http.ListenAndServe(":8080", r)
+	// HARDENING: Custom Server Config
+    srvObj := &http.Server{
+        Addr:         ":8080",
+        Handler:      r,
+        ReadTimeout:  15 * time.Second,  // Prevent Slowloris
+        WriteTimeout: 15 * time.Second,  // Prevent stale connections
+        IdleTimeout:  60 * time.Second,
+    }
+
+    log.Println("🚀 Server starting on :8080 (Production Config)")
+    if err := srvObj.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+        log.Fatalf("Server startup failed: %v", err)
+    }
 }
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
