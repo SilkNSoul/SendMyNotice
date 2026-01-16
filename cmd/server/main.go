@@ -18,6 +18,8 @@ import (
 	"sendmynotice/internal/mailer"
 	"sendmynotice/internal/payment"
 	"sendmynotice/internal/templates"
+	"sendmynotice/internal/storage"
+	"sendmynotice/internal/email"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -50,6 +52,8 @@ type Server struct {
 	squareLocID string
 	squareJsURL string
 	homeTemplate *template.Template
+	db 			*storage.DB
+	email 		*email.Client
 }
 
 func main() {
@@ -71,6 +75,14 @@ func main() {
 	if squareAppID == "" || squareLocID == "" {
 		log.Fatal("SQUARE_APP_ID or SQUARE_LOCATION_ID not set")
 	}
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("DATABASE_URL not set")
+	}
+    resendKey := os.Getenv("RESEND_API_KEY")
+	if resendKey == "" {
+		log.Fatal("RESEND_API_KEY not set")
+	}
 
 	appEnv := os.Getenv("APP_ENV")
 
@@ -85,7 +97,14 @@ func main() {
 	} else {
 		log.Println("⚠️  STARTING IN SANDBOX MODE")
 	}
+
 	// 3. Initialize Clients
+	database, err := storage.NewPostgres(dbURL)
+    if err != nil {
+        log.Fatal(err)
+    }
+	emailClient := email.NewClient(resendKey)
+
 	payClient := payment.NewClient(squareToken, squareEnv)
 
 	tmpl, err := template.ParseFiles("web/index.html")
@@ -100,7 +119,11 @@ func main() {
 		squareLocID: squareLocID,
 		squareJsURL: squareJsURL,
 		homeTemplate: tmpl,
+		db:    database,
+        email: emailClient,
 	}
+
+	go srv.runEmailWorker()
 
 	// 3. Setup Router
 	r := chi.NewRouter()
@@ -222,7 +245,14 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	go s.sendLeadToDiscord(r.FormValue("user_email"), r.FormValue("from_name"), "LEAD_PREVIEW_GENERATED")
+	userEmail := r.FormValue("user_email")
+    userName := r.FormValue("from_name")
+
+    // FIRE AND FORGET DB INSERT
+    go func() {
+        s.db.CreateLead(userEmail, userName)
+        s.sendLeadToDiscord(userEmail, userName, "LEAD_CAPTURE")
+    }()
 
 	// Render the Inner Notice HTML (Visual Preview)
 	data := mailer.NoticeData{
@@ -507,6 +537,9 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. SUCCESS HTML
+	go s.db.MarkPaid(userEmail)
+	go s.email.Send(userEmail, "Receipt: Preliminary Notice Sent", 
+        fmt.Sprintf("<h1>Notice Sent!</h1><p>Tracking: %s</p>", resp.TrackingNumber))
 	go s.sendLeadToDiscord(userEmail, r.FormValue("from_name"), "PAID_CUSTOMER_$$$")
 	
 	encodedURL := url.QueryEscape(resp.URL)
@@ -730,4 +763,23 @@ func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {
 	// Return the Javascript to trigger the print dialog
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `<script>window.print();</script>`)
+}
+
+// The Worker Logic
+func (s *Server) runEmailWorker() {
+    ticker := time.NewTicker(10 * time.Minute)
+    for range ticker.C {
+        leads, _ := s.db.GetPendingReminders()
+        for _, lead := range leads {
+            log.Printf("📧 Sending Abandoned Cart email to %s", lead.Email)
+            
+            // Send the email
+            err := s.email.Send(lead.Email, "Action Required: Preliminary Notice Pending", 
+                "<h1>Don't lose your lien rights</h1><p>You generated a notice but didn't send it...</p>")
+            
+            if err == nil {
+                s.db.MarkReminderSent(lead.ID, 1)
+            }
+        }
+    }
 }
