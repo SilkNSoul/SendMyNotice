@@ -45,6 +45,15 @@ type OrderRecord struct {
     JobAddress     string `json:"job_address"`
 }
 
+type ReceiptData struct {
+	PaymentID      string
+	TrackingNumber string
+	TrackingLink   string
+	Name           string
+	Date           string
+	JobAddress     string
+}
+
 type Server struct {
 	mailer      *mailer.Client
 	payment     *payment.Client
@@ -52,6 +61,7 @@ type Server struct {
 	squareLocID string
 	squareJsURL string
 	homeTemplate *template.Template
+	receiptTemplate *template.Template
 	db 			*storage.DB
 	email 		*email.Client
 }
@@ -107,9 +117,14 @@ func main() {
 
 	payClient := payment.NewClient(squareToken, squareEnv)
 
-	tmpl, err := template.ParseFiles("web/index.html")
+	homeTmpl, err := template.ParseFiles("web/index.html")
     if err != nil {
         log.Fatal("Failed to parse index.html: ", err)
+    }
+
+	receiptTmpl := template.Must(template.ParseFiles("internal/templates/receipt.html"))
+    if err != nil {
+        log.Fatal("Failed to parse receipt.html: ", err)
     }
 
 	srv := &Server{
@@ -118,7 +133,8 @@ func main() {
 		squareAppID: squareAppID,
 		squareLocID: squareLocID,
 		squareJsURL: squareJsURL,
-		homeTemplate: tmpl,
+		homeTemplate:    homeTmpl,
+		receiptTemplate: receiptTmpl,
 		db:    database,
         email: emailClient,
 	}
@@ -545,6 +561,23 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 	encodedURL := url.QueryEscape(resp.URL)
 	trackingLink := fmt.Sprintf("https://tools.usps.com/go/TrackConfirmAction?tLabels=%s", resp.TrackingNumber)
 
+    receiptData := ReceiptData{
+        PaymentID:      paymentID,
+        TrackingNumber: resp.TrackingNumber,
+        TrackingLink:   trackingLink,
+        Name:           r.FormValue("from_name"),
+        Date:           time.Now().Format("Jan 02, 2006"),
+        JobAddress:     r.FormValue("job_site_address"),
+    }
+
+	var receiptBuf bytes.Buffer
+    if err := s.receiptTemplate.Execute(&receiptBuf, receiptData); err == nil {
+        // Send Email
+        go s.email.Send(r.FormValue("user_email"), "Receipt: Preliminary Notice Sent", receiptBuf.String())
+    } else {
+        log.Printf("Receipt Template Error: %v", err)
+    }
+
 	successHTML := fmt.Sprintf(`
         <div class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div class="bg-white rounded-lg shadow-xl max-w-md w-full animate-fade-in-up overflow-hidden">
@@ -753,33 +786,52 @@ func (s *Server) sendLeadToDiscord(email, name, role string) {
 }
 
 func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {
-	email := r.FormValue("email")
-	name := r.FormValue("from_name")
-	role := r.FormValue("sender_role")
+	userEmail := r.FormValue("email")
+	userName := r.FormValue("from_name")
+	
+    // DB Upsert for Lead
+	go func() {
+		if err := s.db.UpsertLead(userEmail, userName); err != nil {
+			log.Printf("DB Error: %v", err)
+		}
+	}()
 
-	// Send to Discord (Non-blocking)
-	go s.sendLeadToDiscord(email, name, role)
-
-	// Return the Javascript to trigger the print dialog
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `<script>window.print();</script>`)
 }
 
 // The Worker Logic
 func (s *Server) runEmailWorker() {
-    ticker := time.NewTicker(10 * time.Minute)
+	campaign := email.GetCampaign() // Get the list of 20 emails
+	
+    // Check every 5 minutes
+	ticker := time.NewTicker(5 * time.Minute)
+	
     for range ticker.C {
-        leads, _ := s.db.GetPendingReminders()
-        for _, lead := range leads {
-            log.Printf("📧 Sending Abandoned Cart email to %s", lead.Email)
-            
-            // Send the email
-            err := s.email.Send(lead.Email, "Action Required: Preliminary Notice Pending", 
-                "<h1>Don't lose your lien rights</h1><p>You generated a notice but didn't send it...</p>")
-            
-            if err == nil {
-                s.db.MarkReminderSent(lead.ID, 1)
-            }
-        }
-    }
+		// We loop through the campaign steps in order
+		for _, step := range campaign {
+			
+            // Find people who are at the previous step (StepID - 1)
+            // AND have waited long enough (last_email_at + Delay < NOW)
+			leads, err := s.db.GetStaleLeads(step.Delay)
+			if err != nil {
+				log.Printf("Worker DB Error: %v", err)
+				continue
+			}
+
+			for _, lead := range leads {
+                // Double check they are at the right step
+				if lead.EmailStep == step.StepID - 1 {
+					log.Printf("📧 Sending Campaign Email #%d to %s", step.StepID, lead.Email)
+					
+                    err := s.email.Send(lead.Email, step.Subject, step.Body)
+					if err == nil {
+						s.db.IncrementEmailStep(lead.ID, step.StepID)
+					} else {
+                        log.Printf("Failed to send email to %s: %v", lead.Email, err)
+                    }
+				}
+			}
+		}
+	}
 }

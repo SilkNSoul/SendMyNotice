@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Helvetica, Arial, sans-serif; background-color: #f3f4f6; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { background: #1e3a8a; padding: 30px; text-align: center; color: white; }
+        .content { padding: 30px; color: #374151; line-height: 1.6; }
+        .tracking-box { background: #eff6ff; border: 1px dashed #3b82f6; padding: 15px; text-align: center; margin: 20px 0; border-radius: 6px; }
+        .tracking-number { font-family: monospace; font-size: 18px; font-weight: bold; color: #1e3a8a; display: block; margin-top: 5px; }
+        .details-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .details-table td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
+        .details-table td:last-child { text-align: right; font-weight: bold; }
+        .footer { background: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }
+        .btn { display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="margin:0;">Notice Sent Successfully</h1>
+            <p style="margin:5px 0 0 0; opacity: 0.9;">Order #{{.PaymentID}}</p>
+        </div>
+        <div class="content">
+            <p>Hi {{.Name}},</p>
+            <p>Your <strong>California Preliminary Notice</strong> has been generated and queued for USPS Certified Mail® delivery.</p>
+            
+            <div class="tracking-box">
+                <span style="font-size: 12px; text-transform: uppercase; color: #6b7280; font-weight: bold;">USPS Certified Mail® Tracking</span>
+                <span class="tracking-number">{{.TrackingNumber}}</span>
+            </div>
+
+            <p>Use the link below to track the delivery to the property owner. This tracking number is your proof of mailing under CA Civil Code § 8118.</p>
+
+            <div style="text-align: center;">
+                <a href="{{.TrackingLink}}" class="btn">Track Delivery</a>
+            </div>
+
+            <h3>Transaction Details</h3>
+            <table class="details-table">
+                <tr>
+                    <td>Date</td>
+                    <td>{{.Date}}</td>
+                </tr>
+                <tr>
+                    <td>Service</td>
+                    <td>Preliminary Notice Filing</td>
+                </tr>
+                <tr>
+                    <td>Job Address</td>
+                    <td>{{.JobAddress}}</td>
+                </tr>
+                <tr>
+                    <td>Total</td>
+                    <td>$29.00</td>
+                </tr>
+            </table>
+        </div>
+        <div class="footer">
+            <p>SendMyNotice.com • San Jose, CA</p>
+            <p>This is a receipt for your records.</p>
+        </div>
+    </div>
+</body>
+</html>
