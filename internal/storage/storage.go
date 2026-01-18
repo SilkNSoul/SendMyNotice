@@ -15,8 +15,8 @@ type Lead struct {
 	Name        string
 	CreatedAt   time.Time
 	Paid        bool
-	EmailStep   int       // Which email # did they last receive?
-	LastEmailAt time.Time // When did we send it?
+	EmailStep   int       
+	LastEmailAt time.Time 
 }
 
 type DB struct {
@@ -33,7 +33,6 @@ func NewPostgres(dsn string) (*DB, error) {
 		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 	
-	// 1. Create Table (If it doesn't exist)
 	query := `
 	CREATE TABLE IF NOT EXISTS leads (
 		id SERIAL PRIMARY KEY,
@@ -49,8 +48,6 @@ func NewPostgres(dsn string) (*DB, error) {
 		return nil, err
 	}
 
-	// 2. MIGRATE: Ensure new columns exist (Fixes your "column does not exist" error)
-    // We ignore errors here because if the column exists, it throws an error, which is fine.
 	migrateQueries := []string{
 		`ALTER TABLE leads ADD COLUMN IF NOT EXISTS email_step INTEGER DEFAULT 0;`,
 		`ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_email_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`,
@@ -65,9 +62,7 @@ func NewPostgres(dsn string) (*DB, error) {
 	return &DB{sql: db}, nil
 }
 
-// UpsertLead: Safe to call multiple times for the same email
 func (d *DB) UpsertLead(email, name string) error {
-	// Only update name if it's missing, don't reset email_step
 	query := `
 		INSERT INTO leads (email, name, last_email_at) 
 		VALUES ($1, $2, NOW())
@@ -82,11 +77,9 @@ func (d *DB) MarkPaid(email string) error {
 	return err
 }
 
-// GetStaleLeads finds people who haven't paid and are ready for the next email
 func (d *DB) GetStaleLeads(delay time.Duration, currentStep int) ([]Lead, error) {
-	// Logic: User is at currentStep. Time elapsed > delay.
 	rows, err := d.sql.Query(`
-		SELECT id, email, name, created_at, email_step, last_email_at
+		SELECT id, email, COALESCE(name, ''), created_at, email_step, last_email_at
 		FROM leads 
 		WHERE paid = FALSE 
         AND email_step = $2
@@ -102,8 +95,6 @@ func (d *DB) GetStaleLeads(delay time.Duration, currentStep int) ([]Lead, error)
 	var leads []Lead
 	for rows.Next() {
 		var l Lead
-		// Handle potential NULLs by using defaults in Scan if necessary, 
-        // but our schema defaults should prevent NULLs.
 		if err := rows.Scan(&l.ID, &l.Email, &l.Name, &l.CreatedAt, &l.EmailStep, &l.LastEmailAt); err == nil {
 			leads = append(leads, l)
 		}

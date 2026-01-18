@@ -27,14 +27,18 @@ type EmailRequest struct {
 
 func (c *Client) Send(to, subject, htmlBody string) error {
 	reqBody := EmailRequest{
-		From:    "SendMyNotice <updates@sendmynotice.com>", // You need to verify this domain in Resend
+		From:    "SendMyNotice <updates@sendmynotice.com>",
 		To:      []string{to},
 		Subject: subject,
 		Html:    htmlBody,
 	}
 
-	jsonBytes, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", resendEndpoint, bytes.NewBuffer(jsonBytes))
+	jsonBytes, err := json.Marshal(reqBody)
+	if err != nil { return fmt.Errorf("marshalling email failed: %w", err) }
+
+	req, err := http.NewRequest("POST", resendEndpoint, bytes.NewBuffer(jsonBytes))
+	if err != nil { return fmt.Errorf("creating request failed: %w", err) }
+
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 

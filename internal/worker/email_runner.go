@@ -22,11 +22,9 @@ func NewEmailRunner(db *storage.DB, emailClient *email.Client) *EmailRunner {
 	}
 }
 
-// Start runs the worker in a blocking loop (run in a goroutine)
 func (r *EmailRunner) Start() {
 	log.Println("📧 Email Drip Worker Started...")
 	
-	// Check every minute
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
@@ -37,9 +35,6 @@ func (r *EmailRunner) Start() {
 
 func (r *EmailRunner) processCampaign() {
 	for _, step := range r.campaign {
-		// Logic:
-		// If we are sending Step 1 (Welcome), we look for users at Step 0.
-		// If we are sending Step 2, we look for users at Step 1.
 		targetCurrentStep := step.StepID - 1
 		
 		leads, err := r.db.GetStaleLeads(step.Delay, targetCurrentStep)
@@ -53,15 +48,12 @@ func (r *EmailRunner) processCampaign() {
 		}
 
 		for _, lead := range leads {
-			// 1. Send the email
 			err := r.emailClient.Send(lead.Email, step.Subject, step.Body)
 			if err != nil {
 				log.Printf("Failed to send email to %s: %v", lead.Email, err)
-				// Don't update state, so we retry next loop
 				continue
 			}
 
-			// 2. Update state in DB
 			if err := r.db.IncrementEmailStep(lead.ID, step.StepID); err != nil {
 				log.Printf("Failed to update step for %s: %v", lead.Email, err)
 			} else {

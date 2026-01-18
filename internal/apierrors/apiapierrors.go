@@ -2,18 +2,17 @@ package apierrors
 
 import "fmt"
 
-// UserError is an error intended to be displayed to the end user.
 type UserError struct {
-	Code        string // The internal/Lob code (e.g. "failed_deliverability_strictness")
-	DevMessage  string // The technical log message
-	UserMessage string // The friendly "fix it" message
+	Code        string
+	DevMessage  string 
+	UserMessage string 
 }
 
 func (e *UserError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Code, e.DevMessage)
 }
 
-// MapLobError translates a raw Lob error code into a UserError.
+
 // Source: https://docs.lob.com/#errors
 func MapLobError(code string, originalMsg string) *UserError {
 	switch code {
@@ -42,7 +41,6 @@ func MapLobError(code string, originalMsg string) *UserError {
 			UserMessage: "We are sending too many requests at once. Please wait a moment and try again.",
 		}
 	default:
-		// Fallback for unknown 422 errors
 		return &UserError{
 			Code:        "unknown_validation_error",
 			DevMessage:  originalMsg,

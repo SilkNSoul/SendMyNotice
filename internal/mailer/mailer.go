@@ -40,7 +40,7 @@ type LetterResponse struct {
 	TrackingNumber string `json:"tracking_number"`
 }
 
-// LobErrorResponse matches the JSON structure Lob sends on failure
+
 type LobErrorResponse struct {
 	Error struct {
 		Message    string `json:"message"`
@@ -49,22 +49,15 @@ type LobErrorResponse struct {
 	} `json:"error"`
 }
 
-// NoticeData holds the specific fields for the Civil Code § 8200 form
+
 type NoticeData struct {
 	Date            string
-	// The Contractor (User)
 	SenderName      string
 	SenderAddress   string
-	SenderRole      string // e.g., "Subcontractor"
-	
-	// The Property Owner (Recipient)
+	SenderRole      string 
 	OwnerName       string
 	OwnerAddress    string
-
-	// Optional lender field
 	LenderName     string
-
-	// Project Details
 	JobDescription  string
 	JobSiteAddress  string
 	EstimatedPrice  string
@@ -96,7 +89,6 @@ func (c *Client) SendLetter(l LetterRequest) (*LetterResponse, error) {
 
 	req.Header.Set("Content-Type", "application/json")
 	
-	// Basic Auth Manual Construction (Proven working)
 	authString := c.apiKey + ":"
 	authHeader := "Basic " + base64.StdEncoding.EncodeToString([]byte(authString))
 	req.Header.Set("Authorization", authHeader)
@@ -115,11 +107,9 @@ func (c *Client) SendLetter(l LetterRequest) (*LetterResponse, error) {
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		var lobErr LobErrorResponse
 		if jsonErr := json.Unmarshal(body, &lobErr); jsonErr == nil && lobErr.Error.Code != "" {
-			// We successfully parsed a Lob error code
 			return nil, apierrors.MapLobError(lobErr.Error.Code, lobErr.Error.Message)
 		}
 		
-		// Fallback if the error body isn't JSON or doesn't match expected structure
 		return nil, fmt.Errorf("api rejected request (status %d): %s", resp.StatusCode, string(body))
 	}
 

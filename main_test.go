@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,7 +29,10 @@ func TestSendLetter_Success(t *testing.T) {
 			URL:         "http://lob.com/preview.pdf",
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		e := json.NewEncoder(w).Encode(response)
+		if e != nil {
+			log.Fatal(e)
+		}
 	}))
 	defer mockServer.Close()
 
@@ -60,7 +64,12 @@ func TestSendLetter_APIError(t *testing.T) {
 	// 1. Setup Mock Server for Failure
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte(`{"error": {"message": "Bad Key"}}`))
+
+		_, err := w.Write([]byte(`{"error": {"message": "Bad Key"}}`))
+		if err != nil {
+			log.Fatalf("Error writing data - %v", err)
+		}
+
 	}))
 	defer mockServer.Close()
 

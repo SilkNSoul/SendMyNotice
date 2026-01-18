@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"sendmynotice/internal/apierrors"
@@ -25,8 +24,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
-
-var fileMutex sync.Mutex
 
 type DiscordMessage struct {
 	Content string `json:"content"`
@@ -69,7 +66,6 @@ type Server struct {
 }
 
 func main() {
-	// 1. Load Keys
 	lobKey := os.Getenv("LOB_API_KEY")
 	if lobKey == "" {
 		log.Fatal("LOB_API_KEY not set")
@@ -98,19 +94,17 @@ func main() {
 
 	appEnv := os.Getenv("APP_ENV")
 
-	// 2. Configure Production vs Sandbox
 	squareEnv := "sandbox"
 	squareJsURL := "https://sandbox.web.squarecdn.com/v1/square.js"
 
 	if appEnv == "production" {
 		log.Println("🚨 STARTING IN PRODUCTION MODE")
 		squareEnv = "production"
-		squareJsURL = "https://web.squarecdn.com/v1/square.js" // Real JS URL
+		squareJsURL = "https://web.squarecdn.com/v1/square.js"
 	} else {
 		log.Println("⚠️  STARTING IN SANDBOX MODE")
 	}
 
-	// 3. Initialize Clients
 	database, err := storage.NewPostgres(dbURL)
     if err != nil {
         log.Fatal(err)
@@ -144,12 +138,10 @@ func main() {
         email: emailClient,
 	}
 
-	// 3. Setup Router
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	// Static Files (CSS, JS)
 	workDir, _ := os.Getwd()
 	filesDir := http.Dir(fmt.Sprintf("%s/web", workDir))
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(filesDir)))
@@ -159,18 +151,18 @@ func main() {
 	})
 
 	r.Get("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "User-agent: *\nAllow: /")
+		_, err = fmt.Fprintf(w, "User-agent: *\nAllow: /")
+		if err != nil {
+			log.Fatalf("robots.txt failed to load: %v", err)
+		}
 	})
 	
 	r.Get("/", srv.handleHome)
 
 	r.Post("/web/preview", srv.handleWebPreview)
 
-	// NEW: Merged Payment + Sending into one atomic action
 	r.Post("/web/pay-and-send", srv.handlePayAndSend)
 
-	// (Optional) Keep lookup route if you ever un-hide the tool,
-	// but strictly for manual entry fallback logic.
 	r.Post("/web/lookup-owner", srv.handleLookupOwner)
 
 	r.Get("/web/check-pdf", srv.handleCheckPDFStatus)
@@ -185,8 +177,8 @@ func main() {
     srvObj := &http.Server{
         Addr:         ":8080",
         Handler:      r,
-        ReadTimeout:  15 * time.Second,  // Prevent Slowloris
-        WriteTimeout: 15 * time.Second,  // Prevent stale connections
+        ReadTimeout:  15 * time.Second, 
+        WriteTimeout: 15 * time.Second, 
         IdleTimeout:  60 * time.Second,
     }
 
@@ -201,7 +193,6 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
         SquareJsURL: s.squareJsURL,
         CurrentDate: time.Now().Format("Jan 02, 2006"),
     }
-    // [FIX] Execute the cached template
     if err := s.homeTemplate.Execute(w, data); err != nil {
         log.Printf("Template execution failed: %v", err)
         http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -225,11 +216,9 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
         err := s.db.UpsertLead(userEmail, userName) 
         if err != nil {
             log.Printf("Failed to save lead: %v", err)
-            // Don't fail the request, just log it. The show must go on.
         }
     }
 
-	// Logic: If Job Site is blank, default to Owner Address
 	jobSiteAddress := r.FormValue("job_site_address")
 	if jobSiteAddress == "" {
 		jobSiteAddress = fmt.Sprintf("%s, %s, %s %s",
@@ -240,7 +229,6 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-	// Prepare data for the Modal
 	modalData := struct {
 		NoticeHTML  template.HTML
 		ToName      string
@@ -249,7 +237,6 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 		SenderRole  string
 		SquareAppID string
 		SquareLocID string
-		// DATA PRESERVATION: We pass the raw values to hidden inputs
 		HiddenInputs map[string]string
 	}{
 		ToName:      r.FormValue("to_name"),
@@ -278,13 +265,14 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-    // FIRE AND FORGET DB INSERT
     go func() {
-        s.db.CreateLead(userEmail, userName)
+        err := s.db.CreateLead(userEmail, userName)
+		if err != nil {
+			log.Fatalf("Error creating lead to db, %v", err)
+		}
         s.sendLeadToDiscord(userEmail, userName, "LEAD_CAPTURE")
     }()
 
-	// Render the Inner Notice HTML (Visual Preview)
 	data := mailer.NoticeData{
 		Date:           time.Now().Format("January 2, 2006"),
 		SenderName:     r.FormValue("from_name"),
@@ -303,7 +291,12 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 
 	noticeTmpl, _ := template.ParseFS(templates.GetNoticeFS(), "notice.html")
 	var noticeBuff bytes.Buffer
-	noticeTmpl.Execute(&noticeBuff, data)
+	
+	err := noticeTmpl.Execute(&noticeBuff, data)
+	if err != nil {
+		log.Fatalf("Error generating notice templace - %v", err)
+	}
+
 	modalData.NoticeHTML = template.HTML(noticeBuff.String())
 
 	const modalTemplate = `
@@ -448,7 +441,10 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 	`
 
 	t, _ := template.New("modal").Parse(modalTemplate)
-	t.Execute(w, modalData)
+	e := t.Execute(w, modalData)
+	if e != nil {
+		log.Fatalf("Error while processing data - %v", e)
+	}
 }
 
 func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
@@ -459,16 +455,20 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. PROCESS PAYMENT
 	token := r.FormValue("square_token")
 	if token == "" {
-		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Error: Missing Payment Information</div>`)
+		_, err := fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Error: Missing Payment Information</div>`)
+		if err != nil {
+			log.Fatalf("Error during formatting - %v", err)
+		}
 		return
 	}
 
 	if r.FormValue("sender_role") == "" {
-        // This is critical because if we charge them and the PDF is missing the role, the notice is invalid.
-        fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Error: Role is required. Please refresh and select your role.</div>`)
+        _ , err := fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Error: Role is required. Please refresh and select your role.</div>`)
+		if err != nil {
+			log.Fatalf("Error during formatting - %v", err)
+		}
         return
     }
 
@@ -476,12 +476,10 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 
 	finalJobSite := r.FormValue("job_site_address")
 	if finalJobSite == "" {
-		// If they checked "Same as Owner", this field is empty, so we construct it from Owner Addr
 		finalJobSite = fmt.Sprintf("%s, %s, %s %s", 
 			r.FormValue("to_address1"), r.FormValue("to_city"), r.FormValue("to_state"), r.FormValue("to_zip"))
 	}
 
-	// 2. GENERATE & SEND LETTER (Only runs if payment succeeds)
 	data := mailer.NoticeData{
 		Date:           time.Now().Format("January 2, 2006"),
 		SenderName:     r.FormValue("from_name"),
@@ -509,17 +507,18 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Charge $29.00 (2900 cents)
 	paymentID, err := s.payment.ChargeCard(r.Context(), token, amountToCharge, userEmail)
 	if err != nil {
 		log.Printf("Payment Error: %v", err)
-		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Payment Declined: %s</div>`, err.Error())
+		_, err := fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">Payment Declined: %s</div>`, err.Error())
+		if err != nil {
+			log.Fatalf("Error during formatting - %v", err)
+		}		
 		return
 	}
 
-	// Create Request to Lob
 	req := mailer.LetterRequest{
-		Description: fmt.Sprintf("Notice - Ref: %s", paymentID), // Track Payment ID in Lob
+		Description: fmt.Sprintf("Notice - Ref: %s", paymentID),
 		To: mailer.Address{
 			Name:           r.FormValue("to_name"),
 			AddressLine1:   r.FormValue("to_address1"),
@@ -538,7 +537,7 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		},
 		Color:        false,
 		File:         htmlBuffer.String(),
-		ExtraService: "certified", // This triggers the Tracking Number
+		ExtraService: "certified",
 	}
 
 	resp, err := s.mailer.SendLetter(req)
@@ -548,8 +547,6 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		refundErr := s.payment.RefundPayment(r.Context(), paymentID, amountToCharge)
 		refundMsg := "Your card was refunded automatically."
 		if refundErr != nil {
-			// In a real app, pageer duty triggers here.
-			// For MVP, we log loud and tell user to contact support.
 			log.Printf("CRITICAL: FAILED TO REFUND %s: %v", paymentID, refundErr)
 			go s.sendLeadToDiscord(userEmail, "SYSTEM_CRITICAL_FAILURE", fmt.Sprintf("CHARGE WITHOUT SERVICE! REFUND FAILED. PaymentID: %s", paymentID))
 
@@ -558,15 +555,20 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 
 		var userErr *apierrors.UserError
 		if errors.As(err, &userErr) {
-			fmt.Fprintf(w, `<div class="p-4 bg-yellow-50 text-yellow-800 border border-yellow-400 rounded"><p class="font-bold">Address Error:</p><p>%s</p><p class="text-sm mt-2 font-bold">%s</p></div>`, userErr.UserMessage, refundMsg)
+			_, e := fmt.Fprintf(w, `<div class="p-4 bg-yellow-50 text-yellow-800 border border-yellow-400 rounded"><p class="font-bold">Address Error:</p><p>%s</p><p class="text-sm mt-2 font-bold">%s</p></div>`, userErr.UserMessage, refundMsg)
+			if e != nil {
+				log.Fatalf("Error during formatting - %v", e)
+			}
 			return
 		}
 
-		fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">System Error: Letter generation failed. %s</div>`, refundMsg)
+		_, err := fmt.Fprintf(w, `<div class="p-4 bg-red-100 text-red-700 border border-red-400 rounded">System Error: Letter generation failed. %s</div>`, refundMsg)
+		if err != nil {
+			log.Fatalf("Error during formatting - %v", err)
+		}		
 		return
 	}
 
-	// 3. SUCCESS HTML
 	go s.db.MarkPaid(userEmail)
 	go s.email.Send(userEmail, "Receipt: Preliminary Notice Sent", 
         fmt.Sprintf("<h1>Notice Sent!</h1><p>Tracking: %s</p>", resp.TrackingNumber))
@@ -587,7 +589,6 @@ receiptData := ReceiptData{
 
 	var receiptBuf bytes.Buffer
     if err := s.receiptTemplate.Execute(&receiptBuf, receiptData); err == nil {
-        // Send Email
         go s.email.Send(r.FormValue("user_email"), "Receipt: Preliminary Notice Sent", receiptBuf.String())
     } else {
         log.Printf("Receipt Template Error: %v", err)
@@ -637,30 +638,31 @@ receiptData := ReceiptData{
             </div>
         </div>
     `,
-		paymentID,           // Ref
-		resp.TrackingNumber, // Tracking Display
-		trackingLink,        // Tracking Href
-		encodedURL,          // PDF Poller
+		paymentID,           
+		resp.TrackingNumber, 
+		trackingLink,        
+		encodedURL,          
 	)
 
-	w.Write([]byte(successHTML))
+	_, e := w.Write([]byte(successHTML))
+	if e != nil {
+		log.Fatalf("Error while processing HTML - %v", e)
+	}
 }
 
-// handleLookupOwner: Still here if you ever un-hide the tool, but now purely for UI feedback
 func (s *Server) handleLookupOwner(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Error", http.StatusBadRequest)
 		return
 	}
 
-	// We removed ATTOM, so we pass empty strings to force "Manual Entry" state
 	s.renderOwnerFields(w,
-		"", // No Name
+		"",
 		r.FormValue("to_address1"),
 		r.FormValue("to_city"),
 		r.FormValue("to_state"),
 		r.FormValue("to_zip"),
-		"Manual Entry Required", // Force Error Message
+		"Manual Entry Required",
 	)
 }
 
@@ -679,8 +681,7 @@ func (s *Server) renderOwnerFields(w http.ResponseWriter, name, addr, city, stat
 		bgClass = "bg-yellow-50"
 	}
 
-	// UI FIX: Removed the duplicate "Property Owner" header text here
-	fmt.Fprintf(w, `
+	_, err := fmt.Fprintf(w, `
 		<div id="owner-fields" class="space-y-2">
             <div class="h-5 flex items-center mb-1">
                %s
@@ -704,30 +705,29 @@ func (s *Server) renderOwnerFields(w http.ResponseWriter, name, addr, city, stat
 			</div>
 		</div>
 	`, statusBadge, nameVal, namePlaceholder, inputBorder, bgClass, addr, city, state, zip)
+	if err != nil {
+		log.Fatalf("Error during formatting - %v", err)
+	}
 }
 
 func (s *Server) handleCheckPDFStatus(w http.ResponseWriter, r *http.Request) {
-	pdfURL := r.URL.Query().Get("url") // This decodes the %26 back to & automatically
+	pdfURL := r.URL.Query().Get("url")
 	if pdfURL == "" {
 		return
 	}
 
-	// SECURITY CHECK: Only allow Lob URLs
-	// Assuming Lob URLs look like "https://lob-assets.com/..."
 	if !strings.HasPrefix(pdfURL, "https://") || !strings.Contains(pdfURL, "lob") {
 		http.Error(w, "Invalid URL", http.StatusForbidden)
 		return
 	}
 
-	// 1. Check if the PDF exists (Using the decoded, valid URL)
 	resp, err := http.Head(pdfURL)
 
-	// 2. LOGIC: If it's NOT ready, keep polling
 	if err != nil || resp.StatusCode != http.StatusOK {
 
 		encodedURL := url.QueryEscape(pdfURL)
 
-		fmt.Fprintf(w, `
+		_, err := fmt.Fprintf(w, `
 			<div hx-get="/web/check-pdf?url=%s" 
 				hx-trigger="load delay:1s" 
 				hx-swap="outerHTML" 
@@ -740,38 +740,25 @@ func (s *Server) handleCheckPDFStatus(w http.ResponseWriter, r *http.Request) {
 				<span class="text-xs text-gray-400 mt-1">This ensures legal compliance.</span>
 			</div>
 		`, encodedURL)
+		if err != nil {
+			log.Fatalf("Error during formatting - %v", err)
+		}
 		return
 	}
 
-	// 3. SUCCESS
-	fmt.Fprintf(w, `
+	_, e := fmt.Fprintf(w, `
 		<a href="%s" target="_blank" class="block w-full bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 transition text-center shadow-md font-bold">
 			View PDF Proof
 		</a>
-	`, pdfURL) 
-}
-
-
-func (s *Server) logLead(email, name, role string) {
-    // structured log entry
-    entry := map[string]string{
-        "event":     "LEAD_CAPTURE", // Easy to grep in Railway logs
-        "timestamp": time.Now().Format(time.RFC3339),
-        "email":     email,
-        "name":      name,
-        "role":      role,
-        "status":    "FREE_TIER_DOWNLOAD",
-    }
-
-    // Write to STDOUT (Railway captures this)
-    jsonBytes, _ := json.Marshal(entry)
-    fmt.Println(string(jsonBytes)) 
+	`, pdfURL)
+	if e != nil {
+		log.Fatalf("Error during formatting - %v", e)
+	} 
 }
 
 func (s *Server) sendLeadToDiscord(email, name, role string) {
     webhookURL := os.Getenv("DISCORD_WEBHOOK_URL")
     if webhookURL == "" {
-        // Log to stdout so you see it in Railway
         fmt.Println("⚠️ SKIPPING DISCORD: DISCORD_WEBHOOK_URL not set")
         return
     }
@@ -804,7 +791,6 @@ func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {
 	userEmail := r.FormValue("email")
 	userName := r.FormValue("from_name")
 	
-    // DB Upsert for Lead
 	go func() {
 		if err := s.db.UpsertLead(userEmail, userName); err != nil {
 			log.Printf("DB Error: %v", err)
@@ -812,5 +798,8 @@ func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, `<script>window.print();</script>`)
+	_, err := fmt.Fprintf(w, `<script>window.print();</script>`)
+	if err != nil {
+		log.Fatalf("Error during formatting - %v", err)
+	}
 }
