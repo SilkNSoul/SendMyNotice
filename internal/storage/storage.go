@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"log"
 
 	_ "github.com/lib/pq"
 )
@@ -32,7 +33,7 @@ func NewPostgres(dsn string) (*DB, error) {
 		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 	
-	// UPDATED SCHEMA: handling the drip campaign state
+	// 1. Create Table (If it doesn't exist)
 	query := `
 	CREATE TABLE IF NOT EXISTS leads (
 		id SERIAL PRIMARY KEY,
@@ -48,11 +49,25 @@ func NewPostgres(dsn string) (*DB, error) {
 		return nil, err
 	}
 
+	// 2. MIGRATE: Ensure new columns exist (Fixes your "column does not exist" error)
+    // We ignore errors here because if the column exists, it throws an error, which is fine.
+	migrateQueries := []string{
+		`ALTER TABLE leads ADD COLUMN IF NOT EXISTS email_step INTEGER DEFAULT 0;`,
+		`ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_email_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`,
+	}
+
+	for _, q := range migrateQueries {
+		if _, err := db.Exec(q); err != nil {
+			log.Printf("Migration notice (safe to ignore if column exists): %v", err)
+		}
+	}
+
 	return &DB{sql: db}, nil
 }
 
 // UpsertLead: Safe to call multiple times for the same email
 func (d *DB) UpsertLead(email, name string) error {
+	// Only update name if it's missing, don't reset email_step
 	query := `
 		INSERT INTO leads (email, name, last_email_at) 
 		VALUES ($1, $2, NOW())
@@ -68,15 +83,16 @@ func (d *DB) MarkPaid(email string) error {
 }
 
 // GetStaleLeads finds people who haven't paid and are ready for the next email
-func (d *DB) GetStaleLeads(delay time.Duration) ([]Lead, error) {
-	// "Give me leads who haven't paid, where the time since the last email is > delay"
+func (d *DB) GetStaleLeads(delay time.Duration, currentStep int) ([]Lead, error) {
+	// Logic: User is at currentStep. Time elapsed > delay.
 	rows, err := d.sql.Query(`
 		SELECT id, email, name, created_at, email_step, last_email_at
 		FROM leads 
 		WHERE paid = FALSE 
+        AND email_step = $2
 		AND last_email_at < NOW() - $1::INTERVAL
 		LIMIT 50
-	`, fmt.Sprintf("%d seconds", int(delay.Seconds())))
+	`, fmt.Sprintf("%d seconds", int(delay.Seconds())), currentStep)
 	
 	if err != nil {
 		return nil, err
@@ -86,7 +102,8 @@ func (d *DB) GetStaleLeads(delay time.Duration) ([]Lead, error) {
 	var leads []Lead
 	for rows.Next() {
 		var l Lead
-		// Handle Nullable timestamps if needed, but defaults handle it
+		// Handle potential NULLs by using defaults in Scan if necessary, 
+        // but our schema defaults should prevent NULLs.
 		if err := rows.Scan(&l.ID, &l.Email, &l.Name, &l.CreatedAt, &l.EmailStep, &l.LastEmailAt); err == nil {
 			leads = append(leads, l)
 		}
@@ -100,8 +117,5 @@ func (d *DB) IncrementEmailStep(id int, newStep int) error {
 }
 
 func (d *DB) CreateLead(email, name string) error {
-	// Upsert: If email exists, update name, otherwise insert
-	// Note: For MVP, simple insert is fine, or check existence
-	_, err := d.sql.Exec("INSERT INTO leads (email, name) VALUES ($1, $2)", email, name)
-	return err
+	return d.UpsertLead(email, name)
 }

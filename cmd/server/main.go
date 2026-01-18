@@ -20,6 +20,7 @@ import (
 	"sendmynotice/internal/templates"
 	"sendmynotice/internal/storage"
 	"sendmynotice/internal/email"
+	"sendmynotice/internal/worker"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -49,6 +50,7 @@ type ReceiptData struct {
 	PaymentID      string
 	TrackingNumber string
 	TrackingLink   string
+    PDFURL         string
 	Name           string
 	Date           string
 	JobAddress     string
@@ -115,6 +117,9 @@ func main() {
     }
 	emailClient := email.NewClient(resendKey)
 
+	emailRunner := worker.NewEmailRunner(database, emailClient)
+	go emailRunner.Start()
+
 	payClient := payment.NewClient(squareToken, squareEnv)
 
 	homeTmpl, err := template.ParseFiles("web/index.html")
@@ -138,8 +143,6 @@ func main() {
 		db:    database,
         email: emailClient,
 	}
-
-	go srv.runEmailWorker()
 
 	// 3. Setup Router
 	r := chi.NewRouter()
@@ -174,7 +177,11 @@ func main() {
 
 	r.Post("/web/capture-lead", srv.handleCaptureLead)
 
-	// HARDENING: Custom Server Config
+	port := os.Getenv("PORT")
+    	if port == "" {
+        	port = "8080"
+    }
+
     srvObj := &http.Server{
         Addr:         ":8080",
         Handler:      r,
@@ -183,7 +190,7 @@ func main() {
         IdleTimeout:  60 * time.Second,
     }
 
-    log.Println("🚀 Server starting on :8080 (Production Config)")
+    log.Printf("🚀 Server starting on :%s (Production Config)", port)
     if err := srvObj.ListenAndServe(); err != nil && err != http.ErrServerClosed {
         log.Fatalf("Server startup failed: %v", err)
     }
@@ -210,6 +217,16 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("sender_role") == "" {
         http.Error(w, "<div class='text-red-600 font-bold p-4'>Error: You must select a specific Role (e.g., Subcontractor) to generate a valid legal notice.</div>", http.StatusBadRequest)
         return
+    }
+
+	userEmail := r.FormValue("user_email")
+    userName := r.FormValue("from_name")
+	if userEmail != "" {
+        err := s.db.UpsertLead(userEmail, userName) 
+        if err != nil {
+            log.Printf("Failed to save lead: %v", err)
+            // Don't fail the request, just log it. The show must go on.
+        }
     }
 
 	// Logic: If Job Site is blank, default to Owner Address
@@ -260,9 +277,6 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 			"user_email":       r.FormValue("user_email"),
 		},
 	}
-
-	userEmail := r.FormValue("user_email")
-    userName := r.FormValue("from_name")
 
     // FIRE AND FORGET DB INSERT
     go func() {
@@ -561,10 +575,11 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 	encodedURL := url.QueryEscape(resp.URL)
 	trackingLink := fmt.Sprintf("https://tools.usps.com/go/TrackConfirmAction?tLabels=%s", resp.TrackingNumber)
 
-    receiptData := ReceiptData{
+receiptData := ReceiptData{
         PaymentID:      paymentID,
         TrackingNumber: resp.TrackingNumber,
         TrackingLink:   trackingLink,
+        PDFURL:         resp.URL,
         Name:           r.FormValue("from_name"),
         Date:           time.Now().Format("Jan 02, 2006"),
         JobAddress:     r.FormValue("job_site_address"),
@@ -798,40 +813,4 @@ func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `<script>window.print();</script>`)
-}
-
-// The Worker Logic
-func (s *Server) runEmailWorker() {
-	campaign := email.GetCampaign() // Get the list of 20 emails
-	
-    // Check every 5 minutes
-	ticker := time.NewTicker(5 * time.Minute)
-	
-    for range ticker.C {
-		// We loop through the campaign steps in order
-		for _, step := range campaign {
-			
-            // Find people who are at the previous step (StepID - 1)
-            // AND have waited long enough (last_email_at + Delay < NOW)
-			leads, err := s.db.GetStaleLeads(step.Delay)
-			if err != nil {
-				log.Printf("Worker DB Error: %v", err)
-				continue
-			}
-
-			for _, lead := range leads {
-                // Double check they are at the right step
-				if lead.EmailStep == step.StepID - 1 {
-					log.Printf("📧 Sending Campaign Email #%d to %s", step.StepID, lead.Email)
-					
-                    err := s.email.Send(lead.Email, step.Subject, step.Body)
-					if err == nil {
-						s.db.IncrementEmailStep(lead.ID, step.StepID)
-					} else {
-                        log.Printf("Failed to send email to %s: %v", lead.Email, err)
-                    }
-				}
-			}
-		}
-	}
 }
