@@ -24,10 +24,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-type DiscordMessage struct {
-	Content string `json:"content"`
-}
-
 type PageData struct {
     SquareJsURL string
     CurrentDate string
