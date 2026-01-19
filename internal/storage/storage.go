@@ -90,7 +90,11 @@ func (d *DB) GetStaleLeads(delay time.Duration, currentStep int) ([]Lead, error)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Error closing rows: %v", err)
+		}
+	}()
 
 	var leads []Lead
 	for rows.Next() {

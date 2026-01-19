@@ -97,7 +97,9 @@ func (c *Client) SendLetter(l LetterRequest) (*LetterResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("network error: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

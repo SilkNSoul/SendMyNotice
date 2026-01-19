@@ -569,9 +569,19 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go s.db.MarkPaid(userEmail)
-	go s.email.Send(userEmail, "Receipt: Preliminary Notice Sent", 
-        fmt.Sprintf("<h1>Notice Sent!</h1><p>Tracking: %s</p>", resp.TrackingNumber))
+	go func() {
+		if err := s.db.MarkPaid(userEmail); err != nil {
+			log.Printf("ERROR: Failed to mark user %s as paid: %v", userEmail, err)
+		}
+	}()
+
+	go func() {
+		receiptHTML := fmt.Sprintf("<h1>Notice Sent!</h1><p>Tracking: %s</p>", resp.TrackingNumber)
+		if err := s.email.Send(userEmail, "Receipt: Preliminary Notice Sent", receiptHTML); err != nil {
+			log.Printf("ERROR: Failed to send receipt email to %s: %v", userEmail, err)
+		}
+	}()
+
 	go s.sendLeadToDiscord(userEmail, r.FormValue("from_name"), "PAID_CUSTOMER_$$$")
 	
 	encodedURL := url.QueryEscape(resp.URL)
@@ -589,7 +599,12 @@ receiptData := ReceiptData{
 
 	var receiptBuf bytes.Buffer
     if err := s.receiptTemplate.Execute(&receiptBuf, receiptData); err == nil {
-        go s.email.Send(r.FormValue("user_email"), "Receipt: Preliminary Notice Sent", receiptBuf.String())
+		go func() {
+			targetEmail := r.FormValue("user_email")
+			if err := s.email.Send(targetEmail, "Receipt: Preliminary Notice Sent", receiptBuf.String()); err != nil {
+				log.Printf("ERROR: Failed to send receipt (template) to %s: %v", targetEmail, err)
+			}
+		}()
     } else {
         log.Printf("Receipt Template Error: %v", err)
     }
@@ -784,7 +799,9 @@ func (s *Server) sendLeadToDiscord(email, name, role string) {
         fmt.Printf("❌ Failed to send to Discord: %v\n", err)
         return
     }
-    defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 }
 
 func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {

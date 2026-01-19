@@ -47,7 +47,9 @@ func (c *Client) Send(to, subject, htmlBody string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("failed to send email: status %d", resp.StatusCode)
