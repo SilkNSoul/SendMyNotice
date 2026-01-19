@@ -114,3 +114,28 @@ func (d *DB) IncrementEmailStep(id int, newStep int) error {
 func (d *DB) CreateLead(email, name string) error {
 	return d.UpsertLead(email, name)
 }
+
+func (d *DB) GetAllLeads() ([]Lead, error) {
+	rows, err := d.sql.Query(`
+		SELECT id, email, COALESCE(name, ''), created_at, paid, email_step, last_email_at
+		FROM leads 
+		ORDER BY created_at DESC
+		LIMIT 100
+	`)
+	if err != nil {
+		return nil, err
+	}
+	
+	if err := rows.Close(); err != nil {
+		log.Printf("Error closing rows: %v", err)
+	}
+
+	var leads []Lead
+	for rows.Next() {
+		var l Lead
+		if err := rows.Scan(&l.ID, &l.Email, &l.Name, &l.CreatedAt, &l.Paid, &l.EmailStep, &l.LastEmailAt); err == nil {
+			leads = append(leads, l)
+		}
+	}
+	return leads, nil
+}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -65,6 +64,20 @@ type Server struct {
 	email 		*email.Client
 }
 
+func BasicAuth(username, password string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user, pass, ok := r.BasicAuth()
+			if !ok || user != username || pass != password {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func main() {
 	lobKey := os.Getenv("LOB_API_KEY")
 	if lobKey == "" {
@@ -93,6 +106,9 @@ func main() {
 	}
 
 	appEnv := os.Getenv("APP_ENV")
+
+	adminUser := os.Getenv("ADMIN_USER")
+    adminPass := os.Getenv("ADMIN_PASS")
 
 	squareEnv := "sandbox"
 	squareJsURL := "https://sandbox.web.squarecdn.com/v1/square.js"
@@ -168,6 +184,13 @@ func main() {
 	r.Get("/web/check-pdf", srv.handleCheckPDFStatus)
 
 	r.Post("/web/capture-lead", srv.handleCaptureLead)
+
+	r.Group(func(r chi.Router) {
+        if adminUser != "" && adminPass != "" {
+            r.Use(BasicAuth(adminUser, adminPass))
+        }
+        r.Get("/admin", srv.handleAdminDashboard)
+    })
 
 	port := os.Getenv("PORT")
     	if port == "" {
@@ -270,7 +293,7 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Fatalf("Error creating lead to db, %v", err)
 		}
-        s.sendLeadToDiscord(userEmail, userName, "LEAD_CAPTURE")
+		s.sendAdminAlert("New Lead Captured", fmt.Sprintf("Name: %s\nEmail: %s", userName, userEmail))
     }()
 
 	data := mailer.NoticeData{
@@ -548,7 +571,7 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 		refundMsg := "Your card was refunded automatically."
 		if refundErr != nil {
 			log.Printf("CRITICAL: FAILED TO REFUND %s: %v", paymentID, refundErr)
-			go s.sendLeadToDiscord(userEmail, "SYSTEM_CRITICAL_FAILURE", fmt.Sprintf("CHARGE WITHOUT SERVICE! REFUND FAILED. PaymentID: %s", paymentID))
+			go s.sendAdminAlert("💰 SALE: $29.00", fmt.Sprintf("Customer: %s\nEmail: %s", r.FormValue("from_name"), userEmail))
 
 			refundMsg = fmt.Sprintf("Refund failed. Please contact support with Ref: %s", paymentID)
 		}
@@ -581,8 +604,6 @@ func (s *Server) handlePayAndSend(w http.ResponseWriter, r *http.Request) {
 			log.Printf("ERROR: Failed to send receipt email to %s: %v", userEmail, err)
 		}
 	}()
-
-	go s.sendLeadToDiscord(userEmail, r.FormValue("from_name"), "PAID_CUSTOMER_$$$")
 	
 	encodedURL := url.QueryEscape(resp.URL)
 	trackingLink := fmt.Sprintf("https://tools.usps.com/go/TrackConfirmAction?tLabels=%s", resp.TrackingNumber)
@@ -771,39 +792,6 @@ func (s *Server) handleCheckPDFStatus(w http.ResponseWriter, r *http.Request) {
 	} 
 }
 
-func (s *Server) sendLeadToDiscord(email, name, role string) {
-    webhookURL := os.Getenv("DISCORD_WEBHOOK_URL")
-    if webhookURL == "" {
-        fmt.Println("⚠️ SKIPPING DISCORD: DISCORD_WEBHOOK_URL not set")
-        return
-    }
-
-	logMsg := fmt.Sprintf(
-		"🔔 **New Lead!**\n👤 **Name:** %s\n📧 **Email:** `%s`\n🛠 **Role:** %s\n🕒 **Time:** <t:%d:R>",
-		name, email, role, time.Now().Unix(),
-	)
-
-	log.Println(logMsg)
-
-
-	msg := DiscordMessage{
-        Content: fmt.Sprintf(
-            "🔔 **New Lead!**\n🛠 **Role:** %s\n🕒 **Time:** <t:%d:R>\n*Check Railway logs for contact info.*",
-            role, time.Now().Unix(),
-        ),
-    }
-
-    payload, _ := json.Marshal(msg)
-    resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(payload))
-    if err != nil {
-        fmt.Printf("❌ Failed to send to Discord: %v\n", err)
-        return
-    }
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-}
-
 func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {
 	userEmail := r.FormValue("email")
 	userName := r.FormValue("from_name")
@@ -818,5 +806,92 @@ func (s *Server) handleCaptureLead(w http.ResponseWriter, r *http.Request) {
 	_, err := fmt.Fprintf(w, `<script>window.print();</script>`)
 	if err != nil {
 		log.Fatalf("Error during formatting - %v", err)
+	}
+}
+
+func (s *Server) sendAdminAlert(subject, body string) {
+    adminEmail := os.Getenv("ADMIN_EMAIL") 
+    if adminEmail == "" {
+        log.Println("⚠️ ADMIN_EMAIL not set, skipping alert")
+        return
+    }
+
+    go func() {
+        if err := s.email.Send(adminEmail, "🔔 "+subject, body); err != nil {
+            log.Printf("Failed to send admin alert: %v", err)
+        }
+    }()
+}
+
+func (s *Server) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
+    leads, err := s.db.GetAllLeads()
+    if err != nil {
+        http.Error(w, "DB Error", 500)
+        return
+    }
+
+    html := `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>SendMyNotice Admin</title>
+        <meta http-equiv="refresh" content="30"> <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-gray-100 p-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">Lead Capture Dashboard</h1>
+                <span class="text-sm text-gray-500">Auto-refreshing...</span>
+            </div>
+            <div class="bg-white shadow-md rounded-lg overflow-hidden">
+                <table class="min-w-full leading-normal">
+                    <thead>
+                        <tr>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created</th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name / Email</th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                            <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Drip Step</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .}}
+                        <tr>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <p class="text-gray-900 whitespace-no-wrap">{{.CreatedAt.Format "Jan 02 15:04"}}</p>
+                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <p class="text-gray-900 font-bold">{{.Name}}</p>
+                                <p class="text-gray-600">{{.Email}}</p>
+                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                {{if .Paid}}
+                                    <span class="relative inline-block px-3 py-1 font-semibold text-green-900 leading-tight">
+                                        <span aria-hidden="true" class="absolute inset-0 bg-green-200 opacity-50 rounded-full"></span>
+                                        <span class="relative">PAID</span>
+                                    </span>
+                                {{else}}
+                                    <span class="relative inline-block px-3 py-1 font-semibold text-yellow-900 leading-tight">
+                                        <span aria-hidden="true" class="absolute inset-0 bg-yellow-200 opacity-50 rounded-full"></span>
+                                        <span class="relative">Lead</span>
+                                    </span>
+                                {{end}}
+                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <span class="text-gray-500">Step {{.EmailStep}}</span>
+                                <span class="text-xs text-gray-400 block">{{.LastEmailAt.Format "Jan 02 15:04"}}</span>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </body>
+    </html>
+    `
+    t, _ := template.New("admin").Parse(html)
+    e := t.Execute(w, leads)
+	if e != nil {
+		log.Fatal(e)
 	}
 }
