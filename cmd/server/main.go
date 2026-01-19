@@ -289,7 +289,7 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Fatalf("Error creating lead to db, %v", err)
 		}
-		s.sendAdminAlert("New Lead Captured", fmt.Sprintf("Name: %s\nEmail: %s", userName, userEmail))
+		s.sendAdminAlert("New Lead Captured", fmt.Sprintf("Name: %s\n", userName))
     }()
 
 	data := mailer.NoticeData{
