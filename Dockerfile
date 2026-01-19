@@ -31,6 +31,8 @@ COPY --from=builder /app/server .
 # Copy the "web" folder
 COPY --from=builder /app/web ./web
 
+COPY --from=builder /app/internal/templates ./internal/templates
+
 # [FIX] Copy the favicon
 COPY --from=builder /app/favicon.ico .
 
