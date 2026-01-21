@@ -358,7 +358,13 @@ func (s *Server) handleWebPreview(w http.ResponseWriter, r *http.Request) {
 										<div class="flex items-center h-5">
 											<input id="tos_agree" name="tos_agree" type="checkbox" required 
 												class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-												onchange="document.getElementById('card-button').disabled = !this.checked; document.getElementById('card-button').classList.toggle('opacity-50', !this.checked)">
+												onchange="
+													const btn = document.getElementById('card-button');
+													btn.disabled = !this.checked; 
+													btn.classList.toggle('opacity-50', !this.checked);
+													btn.classList.toggle('cursor-not-allowed', !this.checked); 
+													btn.classList.toggle('cursor-pointer', this.checked);
+												">
 										</div>
 										<div class="ml-2 text-xs text-gray-600 text-left">
 											I agree to the <button type="button" onclick="document.getElementById('tos-modal').classList.remove('hidden')" class="text-blue-600 underline">Terms of Service</button> and understand that SendMyNotice is a filing service, not a law firm.
